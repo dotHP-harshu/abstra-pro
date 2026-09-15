@@ -1,0 +1,71 @@
+dev.abstra.pro.app-core-ktx-1.13.1-0 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\024b2e8cf6fb58494c61fa51a71f5457\transformed\core-ktx-1.13.1\res
+dev.abstra.pro.app-ui-release-1 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\052e9bbd6df6f1f3d36af9ac943a9a71\transformed\ui-release\res
+dev.abstra.pro.app-foundation-layout-release-2 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\05530dbc58693efd885b9e8477f05f7f\transformed\foundation-layout-release\res
+dev.abstra.pro.app-emoji2-views-helper-1.3.0-3 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\08d32da533060b460e213419793c4129\transformed\emoji2-views-helper-1.3.0\res
+dev.abstra.pro.app-fragment-1.5.4-4 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\0a8530d59ea7bc249f3192a79de6566c\transformed\fragment-1.5.4\res
+dev.abstra.pro.app-appcompat-1.7.0-5 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\0fd0135d2f722f0b21665fcd46755b74\transformed\appcompat-1.7.0\res
+dev.abstra.pro.app-annotation-experimental-1.4.1-6 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\143e5ac7e111970872003c099e9840bb\transformed\annotation-experimental-1.4.1\res
+dev.abstra.pro.app-androidsvg-aar-1.4-7 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\17366b4d4c6aa4bca4cdfb70fb976243\transformed\androidsvg-aar-1.4\res
+dev.abstra.pro.app-activity-ktx-1.9.3-8 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\1aa256bc33c339215db3dda1a6fe8e99\transformed\activity-ktx-1.9.3\res
+dev.abstra.pro.app-lifecycle-viewmodel-release-9 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\1dc1a1360dbe361e1a44e81ddecab911\transformed\lifecycle-viewmodel-release\res
+dev.abstra.pro.app-material-ripple-release-10 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\22719d124619c5429160bae8d029d5ba\transformed\material-ripple-release\res
+dev.abstra.pro.app-ui-tooling-data-release-11 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\24a76aa7863246cc574a5d6e30c927ce\transformed\ui-tooling-data-release\res
+dev.abstra.pro.app-navigation-common-ktx-2.8.3-12 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\2d089a1fd89911e9db05701228c173de\transformed\navigation-common-ktx-2.8.3\res
+dev.abstra.pro.app-lifecycle-viewmodel-savedstate-2.8.7-13 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\3223c9cb20a4f4f6bed5ddbfa2de8e8c\transformed\lifecycle-viewmodel-savedstate-2.8.7\res
+dev.abstra.pro.app-navigation-runtime-ktx-2.8.3-14 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\32d6a94513fc2258f2cec54eedd97d75\transformed\navigation-runtime-ktx-2.8.3\res
+dev.abstra.pro.app-ui-geometry-release-15 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\32da744108d1f9ff06bd0922d9c180dd\transformed\ui-geometry-release\res
+dev.abstra.pro.app-savedstate-ktx-1.2.1-16 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\3bbd914d04c57fcb68c7d6e0a04b47d8\transformed\savedstate-ktx-1.2.1\res
+dev.abstra.pro.app-lifecycle-process-2.8.7-17 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\42246510cc4a6324aef21e8e9863ce9f\transformed\lifecycle-process-2.8.7\res
+dev.abstra.pro.app-sqlite-framework-2.4.0-18 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\42d63ae09a913059ba5cd5e192659979\transformed\sqlite-framework-2.4.0\res
+dev.abstra.pro.app-lifecycle-viewmodel-ktx-2.8.7-19 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\4ae57acb35f977566b31fc5943cba60b\transformed\lifecycle-viewmodel-ktx-2.8.7\res
+dev.abstra.pro.app-ui-tooling-release-20 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\518fbebe759a60459717fd9d35e58524\transformed\ui-tooling-release\res
+dev.abstra.pro.app-profileinstaller-1.3.1-21 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\res
+dev.abstra.pro.app-activity-compose-1.9.3-22 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\5904f98e359fa4ca7b7064dbe0e0acca\transformed\activity-compose-1.9.3\res
+dev.abstra.pro.app-lifecycle-livedata-core-ktx-2.8.7-23 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\5bc3e4b28878db2f96b965cc63fab782\transformed\lifecycle-livedata-core-ktx-2.8.7\res
+dev.abstra.pro.app-media3-session-1.4.1-24 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\64ebc86952ed296c76168f11066e2ef9\transformed\media3-session-1.4.1\res
+dev.abstra.pro.app-ui-tooling-preview-release-25 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\64f94a38a565ea4f0acfd847c81cfd97\transformed\ui-tooling-preview-release\res
+dev.abstra.pro.app-media-1.7.0-26 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\6c0a66e2acad6c80145073c203afb22e\transformed\media-1.7.0\res
+dev.abstra.pro.app-emoji2-1.3.0-27 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\6e3d2c914c0cebc3b34394bd250692b5\transformed\emoji2-1.3.0\res
+dev.abstra.pro.app-room-ktx-2.6.1-28 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\6fc19faecb809a0ec4545c7b3d3ae6c5\transformed\room-ktx-2.6.1\res
+dev.abstra.pro.app-navigation-common-2.8.3-29 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\70138f4a71dd2062ec20c2f141f8f60e\transformed\navigation-common-2.8.3\res
+dev.abstra.pro.app-room-runtime-2.6.1-30 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\767a8b14b1770c9898bc15ee82416cbf\transformed\room-runtime-2.6.1\res
+dev.abstra.pro.app-ui-text-release-31 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\78643fd1025613ec6522149dea18b488\transformed\ui-text-release\res
+dev.abstra.pro.app-material-icons-extended-release-32 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\7e1b750ec3e98c4ff5bc10a2fcf51b3e\transformed\material-icons-extended-release\res
+dev.abstra.pro.app-lifecycle-livedata-core-2.8.7-33 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\80e3e8ac438d53d3e54a8eca83131d73\transformed\lifecycle-livedata-core-2.8.7\res
+dev.abstra.pro.app-activity-1.9.3-34 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\84fe1d6e6fdfea6a5d67f0ad8aed08ca\transformed\activity-1.9.3\res
+dev.abstra.pro.app-navigation-runtime-2.8.3-35 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\8c72b03a8da98b715882583a9c167ddd\transformed\navigation-runtime-2.8.3\res
+dev.abstra.pro.app-foundation-release-36 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\8d27af068554570d9288c1f3ade74cc4\transformed\foundation-release\res
+dev.abstra.pro.app-customview-poolingcontainer-1.0.0-37 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\8d6f722dccc0c0456dc9ef24794f757d\transformed\customview-poolingcontainer-1.0.0\res
+dev.abstra.pro.app-runtime-saveable-release-38 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\953d3d6f7f155a57da9dd447a9756295\transformed\runtime-saveable-release\res
+dev.abstra.pro.app-runtime-release-39 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\975f797eef05e330fbef573732d57f14\transformed\runtime-release\res
+dev.abstra.pro.app-coil-base-2.7.0-40 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\97a628b01d27477c9f8365748dc349a9\transformed\coil-base-2.7.0\res
+dev.abstra.pro.app-ui-graphics-release-41 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\9dfc7ca97f79142f31113b1c5438a9f0\transformed\ui-graphics-release\res
+dev.abstra.pro.app-animation-graphics-release-42 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\a8463c523c1e46eaecf4a8055bb01447\transformed\animation-graphics-release\res
+dev.abstra.pro.app-core-runtime-2.2.0-43 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\ac4f44151a4199c0244fe9828988acab\transformed\core-runtime-2.2.0\res
+dev.abstra.pro.app-material3-release-44 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\aee2c4b00e487742e2791d547561e436\transformed\material3-release\res
+dev.abstra.pro.app-graphics-path-1.0.1-45 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\b013970fb4b7267ec1df6351d68d5b82\transformed\graphics-path-1.0.1\res
+dev.abstra.pro.app-lifecycle-viewmodel-compose-release-46 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\b10ba82086b7aacda167b5563e8242e4\transformed\lifecycle-viewmodel-compose-release\res
+dev.abstra.pro.app-ui-unit-release-47 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\b977235d1ed17f3bfbcb6c19aaab238a\transformed\ui-unit-release\res
+dev.abstra.pro.app-animation-release-48 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\c458aae061e823d22a2228b5f38e4e8d\transformed\animation-release\res
+dev.abstra.pro.app-material-release-49 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\c49dd6ef0bd4a53f30d491777fbbd228\transformed\material-release\res
+dev.abstra.pro.app-lifecycle-livedata-2.8.7-50 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\ca3c13f7f195c872439ee7ba60103c15\transformed\lifecycle-livedata-2.8.7\res
+dev.abstra.pro.app-savedstate-1.2.1-51 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\d37bfcde36870157beffa32384cd1861\transformed\savedstate-1.2.1\res
+dev.abstra.pro.app-lifecycle-runtime-ktx-release-52 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\dd9d4ef9c963dd9f10fa9e21f9958175\transformed\lifecycle-runtime-ktx-release\res
+dev.abstra.pro.app-sqlite-2.4.0-53 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\ddb6c08cd143f80a549bd10c1d83aa43\transformed\sqlite-2.4.0\res
+dev.abstra.pro.app-lifecycle-runtime-compose-release-54 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\dde85157fb6583e3139ac2cbee509f36\transformed\lifecycle-runtime-compose-release\res
+dev.abstra.pro.app-ui-util-release-55 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\deba732995d28edd60cf3b2e5e861b04\transformed\ui-util-release\res
+dev.abstra.pro.app-core-1.13.1-56 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\df6e864189cc69ea5d189a8f87a520d1\transformed\core-1.13.1\res
+dev.abstra.pro.app-media3-exoplayer-1.4.1-57 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\e45c8162b42685e2bf7a0bc7d73fed3b\transformed\media3-exoplayer-1.4.1\res
+dev.abstra.pro.app-navigation-compose-2.8.3-58 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\e5d4fce6afb0b1f9fa6482381b4dc8d8\transformed\navigation-compose-2.8.3\res
+dev.abstra.pro.app-lifecycle-runtime-release-59 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\e6de42055e662dead5ef343509dbd066\transformed\lifecycle-runtime-release\res
+dev.abstra.pro.app-appcompat-resources-1.7.0-60 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\fa7abd46097736908d4b31831d799f72\transformed\appcompat-resources-1.7.0\res
+dev.abstra.pro.app-startup-runtime-1.1.1-61 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\fac83395f0687ff4382bdd7d3e68f017\transformed\startup-runtime-1.1.1\res
+dev.abstra.pro.app-animation-core-release-62 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\fcd03fa6217c2a8c81d56ee84c1a45d8\transformed\animation-core-release\res
+dev.abstra.pro.app-material-icons-core-release-63 C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\ff277e5cb51cff565173e6bc3edaeb9e\transformed\material-icons-core-release\res
+dev.abstra.pro.app-pngs-64 D:\abstra-pro\app\build\generated\res\pngs\debug
+dev.abstra.pro.app-resValues-65 D:\abstra-pro\app\build\generated\res\resValues\debug
+dev.abstra.pro.app-packageDebugResources-66 D:\abstra-pro\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+dev.abstra.pro.app-packageDebugResources-67 D:\abstra-pro\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+dev.abstra.pro.app-debug-68 D:\abstra-pro\app\build\intermediates\merged_res\debug\mergeDebugResources
+dev.abstra.pro.app-debug-69 D:\abstra-pro\app\src\debug\res
+dev.abstra.pro.app-main-70 D:\abstra-pro\app\src\main\res

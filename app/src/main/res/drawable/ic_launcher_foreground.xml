@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Outer glow -->
+    <path
+        android:fillColor="#268A2E52"
+        android:pathData="M54,26 C38.54,26 26,38.54 26,54 C26,69.46 38.54,82 54,82 C69.46,82 82,69.46 82,54 C82,38.54 69.46,26 54,26 Z" />
+    
+    <!-- Main circular badge -->
+    <path
+        android:fillColor="#FFF06FA0"
+        android:pathData="M54,28 C40.2,28 29,39.2 29,53 C29,66.8 40.2,78 54,78 C67.8,78 79,66.8 79,53 C79,39.2 67.8,28 54,28 Z" />
+
+    <!-- Musical notes and center heart -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M48,42 L66,38 L66,45 L52,48 L52,60 C50.5,58.8 48.3,58.2 46,58.8 C42.7,59.7 40.7,62.6 41.5,65.3 C42.3,68 45.7,69.5 49,68.6 C51.8,67.8 53.6,65.5 53.8,63 L54,45 L64,43 L64,57 C62.5,55.8 60.3,55.2 58,55.8 C54.7,56.7 52.7,59.6 53.5,62.3 C54.3,65 57.7,66.5 61,65.6 C63.8,64.8 65.6,62.5 65.8,60 L66,40 L66,36 L48,40 Z" />
+
+    <!-- Sparkle heart -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M70,33 C70,30 73,30 73,33 C73,36 70,37 70,33 Z" />
+    <path
+        android:fillColor="#FFFF99C2"
+        android:pathData="M75,42 C74,40 71,41 71,43 C71,45 74,47 75,48 C76,47 79,45 79,43 C79,41 76,40 75,42 Z" />
+</vector>
