@@ -31,6 +31,11 @@ import dev.abstra.pro.data.model.Playlist
 import dev.abstra.pro.data.model.Song
 import dev.abstra.pro.ui.components.ThematicAlbumArt
 import dev.abstra.pro.ui.theme.LocalAbstraColors
+import dev.abstra.pro.ui.theme.AbstraColors
+import java.util.Calendar
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Favorite
 
 @Composable
 fun HomeScreen(
@@ -41,6 +46,9 @@ fun HomeScreen(
     aiMixes: List<AiMix>,
     topArtists: List<Artist>,
     topGenres: List<Pair<String, Int>>,
+    totalSongs: Int,
+    favoriteCount: Int,
+    lifetimeListeningMs: Long,
     onSongClick: (Song) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
     onMixClick: (AiMix) -> Unit,
@@ -52,9 +60,21 @@ fun HomeScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 130.dp),
         verticalArrangement = Arrangement.spacedBy(22.dp)
     ) {
+        // ─────────────────────────────────────────────────────────────
+        // 0. GREETING HERO CARD
+        // ─────────────────────────────────────────────────────────────
+        item {
+            GreetingHeroCard(
+                dailyListeningTimeStr = formatListeningTime(lifetimeListeningMs),
+                totalSongs = totalSongs,
+                favoriteCount = favoriteCount,
+                colors = colors
+            )
+        }
+
         // ─────────────────────────────────────────────────────────────
         // 1. HERO "CONTINUE LISTENING" CARD
         // ─────────────────────────────────────────────────────────────
@@ -345,5 +365,66 @@ fun HomeScreen(
         item {
             Spacer(modifier = Modifier.height(64.dp))
         }
+    }
+}
+
+@Composable
+fun GreetingHeroCard(
+    dailyListeningTimeStr: String,
+    totalSongs: Int,
+    favoriteCount: Int,
+    colors: AbstraColors
+) {
+    val hour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
+    val greeting = when (hour) {
+        in 0..5 -> "Good night"
+        in 6..11 -> "Good morning"
+        in 12..13 -> "Good noon"
+        in 14..17 -> "Good afternoon"
+        in 18..19 -> "Good evening"
+        else -> "Good evening"
+    }
+    Box(
+        modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(24.dp))
+            .background(brush = Brush.horizontalGradient(listOf(colors.primary, colors.surfaceAlt)))
+            .padding(20.dp)
+    ) {
+        Column {
+            Text(greeting, style = MaterialTheme.typography.headlineMedium, color = colors.textHeading)
+            Spacer(Modifier.weight(1f))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StatChip(Icons.Default.History, dailyListeningTimeStr, colors)
+                StatChip(Icons.Default.MusicNote, totalSongs.toString(), colors)
+                StatChip(Icons.Default.Favorite, favoriteCount.toString(), colors)
+            }
+        }
+    }
+}
+
+@Composable
+fun StatChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, colors: AbstraColors) {
+    Surface(
+        color = colors.bgCard.copy(alpha = 0.6f),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(icon, contentDescription = null, tint = colors.primary, modifier = Modifier.size(16.dp))
+            Text(text, color = colors.textPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+private fun formatListeningTime(ms: Long): String {
+    val totalMinutes = ms / 60000
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return when {
+        hours > 0 -> "${hours}h ${minutes}m"
+        totalMinutes > 0 -> "${totalMinutes}m"
+        else -> "—"
     }
 }

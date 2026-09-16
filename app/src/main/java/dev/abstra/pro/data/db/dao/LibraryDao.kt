@@ -42,4 +42,7 @@ interface LibraryDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveLyrics(lyrics: LyricsCacheEntity)
+
+    @Query("DELETE FROM lyrics_cache WHERE songId = :songId")
+    suspend fun deleteLyrics(songId: String)
 }

@@ -118,6 +118,77 @@ class AudioEngine(private val context: Context) {
         playSong(effective[safeIndex], autoPlay)
     }
 
+    fun enqueueNext(song: Song) {
+        val currentQueue = _queue.value.toMutableList()
+        if (currentQueue.isEmpty()) {
+            setQueue(listOf(song), 0, true)
+            return
+        }
+        val insertAt = (_currentIndex.value + 1).coerceIn(0, currentQueue.size)
+        currentQueue.add(insertAt, song)
+        _queue.value = currentQueue
+        originalQueue = if (_isShuffle.value) {
+            val orig = originalQueue.toMutableList()
+            orig.add(song)
+            orig
+        } else {
+            currentQueue
+        }
+    }
+
+    fun enqueueLast(song: Song) {
+        val currentQueue = _queue.value.toMutableList()
+        if (currentQueue.isEmpty()) {
+            setQueue(listOf(song), 0, true)
+            return
+        }
+        currentQueue.add(song)
+        _queue.value = currentQueue
+        originalQueue = if (_isShuffle.value) {
+            val orig = originalQueue.toMutableList()
+            orig.add(song)
+            orig
+        } else {
+            currentQueue
+        }
+    }
+
+    fun removeQueueItem(song: Song) {
+        val currentQueue = _queue.value.toMutableList()
+        val idx = currentQueue.indexOf(song)
+        if (idx == -1) return
+        currentQueue.removeAt(idx)
+        _queue.value = currentQueue
+        originalQueue = originalQueue.filter { it.id != song.id }
+        if (idx < _currentIndex.value) {
+            _currentIndex.value -= 1
+        }
+    }
+
+    fun moveQueueItem(from: Int, to: Int) {
+        val currentQueue = _queue.value.toMutableList()
+        if (from !in currentQueue.indices || to !in currentQueue.indices) return
+        val item = currentQueue.removeAt(from)
+        currentQueue.add(to, item)
+        _queue.value = currentQueue
+        // simple approach for originalQueue
+        originalQueue = currentQueue
+    }
+
+    /** Clears everything after the currently playing track ("Clear queue" button). */
+    fun clearUpNext() {
+        val currentQueue = _queue.value
+        if (currentQueue.isEmpty()) return
+        val currentIdx = _currentIndex.value
+        if (currentIdx in currentQueue.indices) {
+            _queue.value = currentQueue.take(currentIdx + 1)
+            originalQueue = _queue.value
+        } else {
+            _queue.value = emptyList()
+            originalQueue = emptyList()
+        }
+    }
+
     fun playSong(song: Song, autoPlay: Boolean = true) {
         val prev = _currentSong.value
         if (prev != null && prev.id != song.id) {
@@ -154,6 +225,7 @@ class AudioEngine(private val context: Context) {
         if (!requestAudioFocus()) return
 
         try {
+            stopNativePlayers()
             val player = MediaPlayer().apply {
                 setAudioAttributes(
                     AudioAttributes.Builder()
@@ -165,7 +237,6 @@ class AudioEngine(private val context: Context) {
                 prepare()
             }
 
-            mediaPlayer?.release()
             mediaPlayer = player
 
             // Attach hardware effects
@@ -439,29 +510,32 @@ class AudioEngine(private val context: Context) {
         }
     }
 
+    private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focus ->
+        when (focus) {
+            AudioManager.AUDIOFOCUS_LOSS -> pause()
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pause()
+            AudioManager.AUDIOFOCUS_GAIN -> resume()
+        }
+    }
+
     private fun requestAudioFocus(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .build()
-                )
-                .setOnAudioFocusChangeListener { focus ->
-                    when (focus) {
-                        AudioManager.AUDIOFOCUS_LOSS -> pause()
-                        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pause()
-                        AudioManager.AUDIOFOCUS_GAIN -> resume()
-                    }
-                }
-                .build()
-            audioFocusRequest = req
-            audioManager.requestAudioFocus(req) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            if (audioFocusRequest == null) {
+                audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build()
+                    )
+                    .setOnAudioFocusChangeListener(audioFocusChangeListener)
+                    .build()
+            }
+            audioManager.requestAudioFocus(audioFocusRequest!!) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         } else {
             @Suppress("DEPRECATION")
             audioManager.requestAudioFocus(
-                null,
+                audioFocusChangeListener,
                 AudioManager.STREAM_MUSIC,
                 AudioManager.AUDIOFOCUS_GAIN
             ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED

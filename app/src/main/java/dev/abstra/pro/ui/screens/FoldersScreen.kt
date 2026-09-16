@@ -186,7 +186,7 @@ fun FoldersScreen(
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 96.dp),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 130.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         items(folders, key = { it.path }) { item ->
@@ -385,7 +385,7 @@ private fun FolderDetailView(
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 96.dp)
+            contentPadding = PaddingValues(bottom = 130.dp)
         ) {
             items(folder.songs, key = { it.id }) { song ->
                 SongListItem(

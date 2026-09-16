@@ -47,6 +47,7 @@ fun SongsScreen(
     onEditMetadata: (Song) -> Unit,
     onDeleteSong: (Song) -> Unit,
     onRescanLibrary: () -> Unit,
+    listState: androidx.compose.foundation.lazy.LazyListState = androidx.compose.foundation.lazy.rememberLazyListState(),
     modifier: Modifier = Modifier
 ) {
     val colors = LocalAbstraColors.current
@@ -57,6 +58,9 @@ fun SongsScreen(
     // Multi-selection state
     var isSelectionMode by remember { mutableStateOf(false) }
     val selectedSongIds = remember { mutableStateListOf<String>() }
+
+    // Bottom sheet state
+    var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
 
     // Filter & Sort
     val filteredSongs = remember(songs, searchQuery, sortOption) {
@@ -85,8 +89,6 @@ fun SongsScreen(
             SongSortOption.RECENTLY_ADDED -> filtered.sortedByDescending { it.dateAdded }
         }
     }
-
-    val listState = rememberLazyListState()
 
     Column(
         modifier = modifier
@@ -343,11 +345,12 @@ fun SongsScreen(
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 6.dp, bottom = 96.dp)
+                contentPadding = PaddingValues(top = 6.dp, bottom = 130.dp)
             ) {
                 itemsIndexed(
                     items = filteredSongs,
-                    key = { _, song -> song.id }
+                    key = { _, song -> song.id },
+                    contentType = { _, _ -> "song" }
                 ) { _, song ->
                     val isCurrent = currentSong?.id == song.id
                     val isSelected = selectedSongIds.contains(song.id)
@@ -373,12 +376,43 @@ fun SongsScreen(
                         },
                         onFavoriteToggle = { onToggleFavorite(song) },
                         onOptionsClick = {
-                            // TODO: Show bottom sheet for song options (Play Next, Add to Queue, Edit, Delete)
+                            selectedSongForOptions = song
                         },
                         onSwipeNext = { onPlayNext(song) }
                     )
                 }
             }
+        }
+        
+        selectedSongForOptions?.let { song ->
+            dev.abstra.pro.ui.components.SongOptionsBottomSheet(
+                song = song,
+                onDismissRequest = { selectedSongForOptions = null },
+                onPlayNext = {
+                    onPlayNext(song)
+                    selectedSongForOptions = null
+                },
+                onAddToQueue = {
+                    onAddToQueue(song)
+                    selectedSongForOptions = null
+                },
+                onAddToPlaylist = {
+                    onAddToPlaylist(song)
+                    selectedSongForOptions = null
+                },
+                onEditMetadata = {
+                    onEditMetadata(song)
+                    selectedSongForOptions = null
+                },
+                onDeleteSong = {
+                    onDeleteSong(song)
+                    selectedSongForOptions = null
+                },
+                onToggleFavorite = {
+                    onToggleFavorite(song)
+                    selectedSongForOptions = null
+                }
+            )
         }
     }
 }

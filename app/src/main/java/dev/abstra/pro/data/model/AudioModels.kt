@@ -110,7 +110,7 @@ enum class UiDensity {
 /** Now-Playing Centerpiece Styles */
 enum class PlayerDesignStyle {
     ROTATING_CD,
-    TURNTABLE_CD,
+    VINYL_RECORD,
     POLAROID,
     CASSETTE,
     MINIMAL_ART

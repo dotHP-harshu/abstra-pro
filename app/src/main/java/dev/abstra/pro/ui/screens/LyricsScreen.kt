@@ -8,6 +8,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -21,6 +23,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -28,8 +32,11 @@ import androidx.compose.ui.unit.sp
 import dev.abstra.pro.data.model.Song
 import dev.abstra.pro.lyrics.model.LyricsLine
 import dev.abstra.pro.ui.components.RotatingCdCenterpiece
+import dev.abstra.pro.ui.components.ThematicAlbumArt
+import dev.abstra.pro.ui.components.PaletteColors
 import dev.abstra.pro.ui.theme.LocalAbstraColors
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 @Composable
 fun LyricsScreen(
@@ -46,7 +53,6 @@ fun LyricsScreen(
 ) {
     val colors = LocalAbstraColors.current
     val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
 
     val infiniteTransition = rememberInfiniteTransition()
     val rotationAngle by infiniteTransition.animateFloat(
@@ -56,8 +62,12 @@ fun LyricsScreen(
             animation = tween(8000, easing = androidx.compose.animation.core.LinearEasing)
         )
     )
-
     var keepScreenOn by remember { mutableStateOf(false) }
+    var palette by remember { mutableStateOf<PaletteColors?>(null) }
+
+    // Suppress auto-scroll for a few seconds after the user touches/drags the list,
+    // so manual scrolling never fights the position-follow animation.
+    var manualScrollUntilMs by remember { mutableStateOf(0L) }
 
     // Find current active line index
     val adjustedPosition = currentPositionMs + timeOffsetMs
@@ -69,8 +79,7 @@ fun LyricsScreen(
     // Auto-scroll when active line changes
     LaunchedEffect(activeIndex) {
         if (lyricsLines.isNotEmpty() && activeIndex in lyricsLines.indices) {
-            scope.launch {
-                // Scroll centering active line
+            if (System.currentTimeMillis() >= manualScrollUntilMs) {
                 listState.animateScrollToItem(
                     index = (activeIndex - 2).coerceAtLeast(0)
                 )
@@ -81,7 +90,19 @@ fun LyricsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(colors.bgBackground)
+            .background(
+                brush = if (palette != null) {
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        colors = listOf(
+                            Color(palette!!.dominant).copy(alpha = 0.4f),
+                            colors.bgBackground.copy(alpha = 0.95f),
+                            colors.bgBackground
+                        )
+                    )
+                } else {
+                    androidx.compose.ui.graphics.SolidColor(colors.bgBackground)
+                }
+            )
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
@@ -121,6 +142,15 @@ fun LyricsScreen(
                     color = colors.textSecondary,
                     maxLines = 1
                 )
+                Box(modifier = Modifier.size(0.dp)) {
+                    ThematicAlbumArt(
+                        trackId = currentSong?.id ?: "",
+                        title = currentSong?.title ?: "",
+                        artist = currentSong?.artist ?: "",
+                        uriString = currentSong?.uriString ?: "",
+                        onPaletteReady = { palette = it }
+                    )
+                }
             }
 
             // Keep Screen On Chip
@@ -227,7 +257,7 @@ fun LyricsScreen(
                         modifier = Modifier.size(200.dp)
                     )
                     Text(
-                        text = "No synced lyrics found (.lrc)",
+                        text = "No lyrics found for this track",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -255,6 +285,16 @@ fun LyricsScreen(
         } else {
             LazyColumn(
                 state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        // Any touch on the list pauses auto-scroll for 4 seconds,
+                        // so user scrolling is never hijacked by the position tracker.
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                            manualScrollUntilMs = System.currentTimeMillis() + 4000
+                        }
+                    },
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 40.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp)

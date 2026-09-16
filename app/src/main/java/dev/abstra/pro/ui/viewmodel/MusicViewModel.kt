@@ -2,6 +2,7 @@ package dev.abstra.pro.ui.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.content.IntentSender
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,7 +10,9 @@ import dev.abstra.pro.ai.AbstraAiEngine
 import dev.abstra.pro.ai.model.AiMix
 import dev.abstra.pro.audio.AudioEngine
 import dev.abstra.pro.data.db.AppDatabase
+import dev.abstra.pro.data.db.entities.LyricsCacheEntity
 import dev.abstra.pro.data.model.*
+import dev.abstra.pro.data.repository.MetadataManager
 import dev.abstra.pro.data.repository.MusicRepository
 import dev.abstra.pro.lyrics.LyricsParser
 import dev.abstra.pro.lyrics.model.LyricsLine
@@ -51,11 +54,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _editingMetadataSong = MutableStateFlow<Song?>(null)
     val editingMetadataSong: StateFlow<Song?> = _editingMetadataSong.asStateFlow()
 
-    // ── App Settings ──
+    private val prefs = context.getSharedPreferences("abstra_prefs", Context.MODE_PRIVATE)
+
     private val _currentTheme = MutableStateFlow(AppTheme.COTTON_CANDY)
     val currentTheme: StateFlow<AppTheme> = _currentTheme.asStateFlow()
 
-    private val _currentDesignStyle = MutableStateFlow(PlayerDesignStyle.TURNTABLE_CD)
+    private val _currentDesignStyle = MutableStateFlow(PlayerDesignStyle.VINYL_RECORD)
     val currentDesignStyle: StateFlow<PlayerDesignStyle> = _currentDesignStyle.asStateFlow()
 
     private val _writePhysicalTags = MutableStateFlow(false)
@@ -64,12 +68,22 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _minDurationFilterSec = MutableStateFlow(10)
     val minDurationFilterSec: StateFlow<Int> = _minDurationFilterSec.asStateFlow()
 
+    private val _musicFolderUri = MutableStateFlow(prefs.getString("music_folder_uri", "") ?: "")
+    val musicFolderUri: StateFlow<String> = _musicFolderUri.asStateFlow()
+
+    fun setMusicFolderUri(uri: String) {
+        prefs.edit().putString("music_folder_uri", uri).apply()
+        _musicFolderUri.value = uri
+        rescanLibrary()
+    }
+
     // ── Audio Engine StateFlows Exposed to UI ──
     val currentSong: StateFlow<Song?> = audioEngine.currentSong
     val isPlaying: StateFlow<Boolean> = audioEngine.isPlaying
     val currentPosition: StateFlow<Long> = audioEngine.currentPosition
     val duration: StateFlow<Long> = audioEngine.duration
     val queue: StateFlow<List<Song>> = audioEngine.queue
+    val currentIndex: StateFlow<Int> = audioEngine.currentIndex
     val repeatMode: StateFlow<RepeatMode> = audioEngine.repeatMode
     val isShuffle: StateFlow<Boolean> = audioEngine.isShuffle
     val playbackSpeed: StateFlow<Float> = audioEngine.playbackSpeed
@@ -80,6 +94,30 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     // ── Repository Library Data ──
     val allSongs: StateFlow<List<Song>> = repository.allSongs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val totalLifetimePlaytime: StateFlow<Long> = repository.totalLifetimePlaytime
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+
+    val totalPlayCount: StateFlow<Int> = repository.totalPlayCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    // ── Excluded (hidden) folders, persisted in prefs ──
+    private val _excludedFolderPaths = MutableStateFlow(
+        prefs.getStringSet("excluded_folders", emptySet())?.toSet() ?: emptySet()
+    )
+    val excludedFolderPaths: StateFlow<Set<String>> = _excludedFolderPaths.asStateFlow()
+
+    fun excludeFolder(folderPath: String) {
+        val updated = _excludedFolderPaths.value + folderPath
+        prefs.edit().putStringSet("excluded_folders", updated).apply()
+        _excludedFolderPaths.value = updated
+    }
+
+    fun restoreFolder(folderPath: String) {
+        val updated = _excludedFolderPaths.value - folderPath
+        prefs.edit().putStringSet("excluded_folders", updated).apply()
+        _excludedFolderPaths.value = updated
+    }
 
     val playlists: StateFlow<List<Playlist>> = repository.playlists
         .map { list ->
@@ -122,7 +160,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
         // Initial scan on boot
         viewModelScope.launch {
-            repository.scanLocalMedia()
+            repository.scanLocalMedia(_musicFolderUri.value)
             // Regenerate AI mixes once songs loaded
             val initialSongs = allSongs.first { it.isNotEmpty() }
             aiEngine.regenerateMixes(initialSongs)
@@ -177,6 +215,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     // ── Playback Controls ──
     fun playSong(song: Song) {
+        if (currentSong.value?.id == song.id) {
+            togglePlayPause()
+            return
+        }
         val currentList = allSongs.value
         val index = currentList.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
         audioEngine.setQueue(currentList, index, autoPlay = true)
@@ -190,6 +232,26 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         if (songs.isEmpty()) return
         val shuffled = songs.shuffled()
         audioEngine.setQueue(shuffled, 0, autoPlay = true)
+    }
+
+    fun playNext(song: Song) {
+        audioEngine.enqueueNext(song)
+    }
+
+    fun addToQueue(song: Song) {
+        audioEngine.enqueueLast(song)
+    }
+
+    fun removeQueueItem(song: Song) {
+        audioEngine.removeQueueItem(song)
+    }
+
+    fun moveQueueItem(from: Int, to: Int) {
+        audioEngine.moveQueueItem(from, to)
+    }
+
+    fun clearQueue() {
+        audioEngine.clearUpNext()
     }
 
     fun togglePlayPause() {
@@ -245,7 +307,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun rescanLibrary() {
         viewModelScope.launch {
-            repository.scanLocalMedia()
+            repository.scanLocalMedia(_musicFolderUri.value)
             val songs = allSongs.value
             if (songs.isNotEmpty()) {
                 aiEngine.regenerateMixes(songs)
@@ -274,6 +336,35 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun addSongsToPlaylist(playlistId: Long, songs: List<Song>) {
         viewModelScope.launch {
             repository.addSongsToPlaylist(playlistId, songs.map { it.id })
+        }
+    }
+
+    suspend fun getSongsForPlaylist(playlistId: Long): List<Song> {
+        return repository.getSongsForPlaylistSync(playlistId)
+    }
+
+    // ── Song Deletion ──
+    private val _pendingDeleteSong = MutableStateFlow<Song?>(null)
+
+    /**
+     * Kicks off a device delete for the song. On API 30+ a system confirmation
+     * dialog is shown; the caller launches the returned IntentSender and later
+     * invokes [onSongDeleteConfirmed] with the user's decision.
+     */
+    suspend fun requestDeleteSong(song: Song): IntentSender? {
+        val sender = repository.requestSongDelete(song)
+        if (sender != null) {
+            _pendingDeleteSong.value = song
+        }
+        return sender
+    }
+
+    fun onSongDeleteConfirmed(deleted: Boolean) {
+        val song = _pendingDeleteSong.value
+        _pendingDeleteSong.value = null
+        if (!deleted || song == null) return
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteSongFromLibrary(song.id)
         }
     }
 
@@ -336,6 +427,19 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             if (cached != null && cached.rawLrc.isNotBlank()) {
                 val parsed = LyricsParser.parse(cached.rawLrc)
                 _currentLyrics.value = parsed
+                return@launch
+            }
+
+            // 3. Fall back to embedded lyrics tags (USLT / LYRICS) via jaudiotagger
+            if (song.filePath.isNotBlank()) {
+                val embedded = MetadataManager.readEmbeddedLyrics(song.filePath)
+                if (!embedded.isNullOrBlank()) {
+                    _currentLyrics.value = LyricsParser.parse(embedded)
+                    // Cache so the next play is instant (no file re-parse)
+                    database.libraryDao().saveLyrics(
+                        LyricsCacheEntity(songId = song.id, rawLrc = embedded)
+                    )
+                }
             }
         }
     }

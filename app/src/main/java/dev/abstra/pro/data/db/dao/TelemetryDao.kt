@@ -19,6 +19,9 @@ interface TelemetryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveTelemetry(telemetry: PlaybackTelemetryEntity)
 
+    @Query("DELETE FROM playback_telemetry WHERE songId = :songId")
+    suspend fun deleteTelemetry(songId: String)
+
     // ── Markov Chain Transitions ──
     @Query("SELECT * FROM markov_transitions WHERE fromSongId = :fromSongId")
     suspend fun getTransitionsFrom(fromSongId: String): List<MarkovTransitionEntity>

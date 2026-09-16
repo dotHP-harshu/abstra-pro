@@ -32,24 +32,32 @@ enum class MainNavigationTab(val title: String) {
 fun TopSegmentedTabs(
     selectedTab: MainNavigationTab,
     onTabSelected: (MainNavigationTab) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Live pager position (currentPage + offsetFraction). When provided, the
+     *  indicator pill slides continuously with swipes instead of only animating
+     *  after the page settles. */
+    pagerPageFraction: Float? = null
 ) {
     val colors = LocalAbstraColors.current
     val tabs = MainNavigationTab.entries
     val selectedIndex = tabs.indexOf(selectedTab)
 
     // Compute bias from -1f to 1f for the animated sliding indicator pill
-    val targetBias = when (selectedIndex) {
-        0 -> -1f
-        1 -> -0.333f
-        2 -> 0.333f
-        else -> 1f
+    val targetBias = if (tabs.size > 1) {
+        (selectedIndex.toFloat() * 2f / (tabs.size - 1)) - 1f
+    } else {
+        0f
     }
     val animatedBias by animateFloatAsState(
         targetValue = targetBias,
         animationSpec = spring(dampingRatio = 0.82f, stiffness = 400f),
         label = "tabIndicatorBias"
     )
+    // While the pager is available, track it 1:1 (one continuous gesture system)
+    val liveBias = pagerPageFraction?.let { fraction ->
+        if (tabs.size > 1) (fraction * 2f / (tabs.size - 1)) - 1f else 0f
+    }
+    val indicatorBias = liveBias ?: animatedBias
 
     Surface(
         modifier = modifier
@@ -70,7 +78,7 @@ fun TopSegmentedTabs(
                 modifier = Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(1f / tabs.size)
-                    .align(BiasAlignment(horizontalBias = animatedBias, verticalBias = 0f))
+                    .align(BiasAlignment(horizontalBias = indicatorBias, verticalBias = 0f))
                     .shadow(4.dp, RoundedCornerShape(20.dp), spotColor = colors.primary.copy(alpha = 0.4f))
                     .clip(RoundedCornerShape(20.dp))
                     .background(colors.primary)

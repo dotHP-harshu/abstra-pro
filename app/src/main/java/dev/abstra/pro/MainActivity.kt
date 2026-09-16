@@ -2,6 +2,7 @@ package dev.abstra.pro
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -45,6 +46,8 @@ class MainActivity : ComponentActivity() {
             val isSleepTimerDialogOpen by viewModel.isSleepTimerDialogOpen.collectAsState()
             val isCreatePlaylistDialogOpen by viewModel.isCreatePlaylistDialogOpen.collectAsState()
             val editingSong by viewModel.editingMetadataSong.collectAsState()
+            
+            var showQueueSheet by remember { mutableStateOf(false) }
 
             // Playback state
             val currentSong by viewModel.currentSong.collectAsState()
@@ -68,6 +71,9 @@ class MainActivity : ComponentActivity() {
             val lyricsLines by viewModel.currentLyrics.collectAsState()
             val lyricsOffsetMs by viewModel.lyricsTimeOffsetMs.collectAsState()
 
+            // Hoisted List States
+            val songsListState = androidx.compose.foundation.lazy.rememberLazyListState()
+            
             // SAF Activity Launchers
             val exportLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.CreateDocument("application/json")
@@ -94,6 +100,18 @@ class MainActivity : ComponentActivity() {
             ) { uri ->
                 if (uri != null) {
                     viewModel.importLrcFile(uri)
+                }
+            }
+
+            val folderPickerLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.OpenDocumentTree()
+            ) { uri ->
+                if (uri != null) {
+                    contentResolver.takePersistableUriPermission(
+                        uri,
+                        android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                    viewModel.setMusicFolderUri(uri.toString())
                 }
             }
 
@@ -156,12 +174,32 @@ class MainActivity : ComponentActivity() {
                         )
 
                         // 2. Active Screen Content
-                        Box(
+                        val pagerState = androidx.compose.foundation.pager.rememberPagerState(
+                            initialPage = currentTab.ordinal,
+                            pageCount = { MainNavigationTab.values().size }
+                        )
+
+                        // Sync pager to tab clicks
+                        LaunchedEffect(currentTab) {
+                            if (pagerState.currentPage != currentTab.ordinal) {
+                                pagerState.animateScrollToPage(currentTab.ordinal)
+                            }
+                        }
+
+                        // Sync tab state to pager swipes
+                        LaunchedEffect(pagerState.currentPage) {
+                            if (pagerState.currentPage != currentTab.ordinal) {
+                                viewModel.setTab(MainNavigationTab.values()[pagerState.currentPage])
+                            }
+                        }
+
+                        androidx.compose.foundation.pager.HorizontalPager(
+                            state = pagerState,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()
-                        ) {
-                            when (currentTab) {
+                        ) { page ->
+                            when (MainNavigationTab.values()[page]) {
                                 MainNavigationTab.HOME -> {
                                     HomeScreen(
                                         currentSong = currentSong,
@@ -191,12 +229,13 @@ class MainActivity : ComponentActivity() {
                                         onPlayAll = { viewModel.playQueue(it) },
                                         onShuffleAll = { viewModel.shuffleQueue(it) },
                                         onToggleFavorite = { viewModel.toggleFavorite(it) },
-                                        onAddToQueue = { /* enqueued */ },
-                                        onPlayNext = { /* play next */ },
+                                        onAddToQueue = { viewModel.addToQueue(it) },
+                                        onPlayNext = { viewModel.playNext(it) },
                                         onAddToPlaylist = { /* add to pl */ },
                                         onEditMetadata = { viewModel.setEditingMetadataSong(it) },
                                         onDeleteSong = { /* delete */ },
-                                        onRescanLibrary = { viewModel.rescanLibrary() }
+                                        onRescanLibrary = { viewModel.rescanLibrary() },
+                                        listState = songsListState
                                     )
                                 }
                                 MainNavigationTab.PLAYLISTS -> {
@@ -218,12 +257,11 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                                 MainNavigationTab.FOLDERS -> {
-                                    // Group songs by folder
                                     val folders = remember(allSongs) {
-                                        allSongs.groupBy { it.folderName }.map { (name, songs) ->
+                                        allSongs.groupBy { java.io.File(it.filePath).parent ?: "Unknown" }.map { (path, songs) ->
                                             Folder(
-                                                name = name,
-                                                path = songs.firstOrNull()?.filePath ?: "",
+                                                name = java.io.File(path).name,
+                                                path = path,
                                                 songCount = songs.size,
                                                 songs = songs
                                             )
@@ -261,7 +299,8 @@ class MainActivity : ComponentActivity() {
                                         onWritePhysicalTagsToggle = { viewModel.setWritePhysicalTags(it) },
                                         onExportBackup = { exportLauncher.launch("abstra_pro_backup.json") },
                                         onImportBackup = { importLauncher.launch(arrayOf("application/json")) },
-                                        onRescanLibrary = { viewModel.rescanLibrary() }
+                                        onRescanLibrary = { viewModel.rescanLibrary() },
+                                        onSelectFolder = { folderPickerLauncher.launch(Uri.EMPTY) }
                                     )
                                 }
                             }
@@ -311,7 +350,7 @@ class MainActivity : ComponentActivity() {
                             onToggleRepeat = { viewModel.toggleRepeat() },
                             onToggleShuffle = { viewModel.toggleShuffle() },
                             onToggleFavorite = { viewModel.toggleFavorite(it) },
-                            onOpenQueue = { /* open queue drawer */ },
+                            onOpenQueue = { showQueueSheet = true },
                             onOpenLyrics = { viewModel.setLyricsOpen(true) },
                             onOpenEqualizer = { viewModel.setEqualizerOpen(true) },
                             onOpenSleepTimer = { viewModel.setSleepTimerDialogOpen(true) },
@@ -373,6 +412,22 @@ class MainActivity : ComponentActivity() {
                             onSelectDuration = { mins ->
                                 viewModel.setSleepTimer(mins)
                                 viewModel.setSleepTimerDialogOpen(false)
+                            }
+                        )
+                    }
+
+                    if (showQueueSheet) {
+                        val q by viewModel.queue.collectAsState()
+                        val qIdx by viewModel.currentIndex.collectAsState()
+                        QueueBottomSheet(
+                            queue = q,
+                            currentIndex = qIdx,
+                            onDismiss = { showQueueSheet = false },
+                            onReorder = { from, to -> viewModel.moveQueueItem(from, to) },
+                            onRemove = { song -> viewModel.removeQueueItem(song) },
+                            onSongClick = { song -> 
+                                viewModel.playSong(song)
+                                showQueueSheet = false
                             }
                         )
                     }

@@ -40,6 +40,7 @@ fun SettingsScreen(
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
     onRescanLibrary: () -> Unit,
+    onSelectFolder: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = LocalAbstraColors.current
@@ -166,7 +167,7 @@ fun SettingsScreen(
                                         Text(
                                             text = when (style) {
                                                 PlayerDesignStyle.ROTATING_CD -> "CD"
-                                                PlayerDesignStyle.TURNTABLE_CD -> "Turntable"
+                                                PlayerDesignStyle.VINYL_RECORD -> "Vinyl"
                                                 PlayerDesignStyle.POLAROID -> "Polaroid"
                                                 PlayerDesignStyle.CASSETTE -> "Cassette"
                                                 PlayerDesignStyle.MINIMAL_ART -> "Minimal"
@@ -296,6 +297,33 @@ fun SettingsScreen(
                             Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Rescan Device Storage Now", color = colors.primary)
+                        }
+
+                        Divider(color = colors.border.copy(alpha = 0.5f))
+
+                        // Music Folder selection
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Music Library Folder", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
+                                    Text("Restrict scanning to a specific folder", fontSize = 12.sp, color = colors.textSecondary)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            FilledTonalButton(
+                                onClick = { onSelectFolder() },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = colors.bgSurface,
+                                    contentColor = colors.textPrimary
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Select Folder", fontSize = 12.sp)
+                            }
                         }
                     }
                 }

@@ -2,6 +2,7 @@ package dev.abstra.pro.data.repository
 
 import android.content.ContentUris
 import android.content.Context
+import android.content.IntentSender
 import android.net.Uri
 import android.os.Build
 import android.os.storage.StorageManager
@@ -66,7 +67,7 @@ class MusicRepository(
     // MEDIASTORE SCANNER (Filters unwanted audio, <10s audio, voice notes)
     // ─────────────────────────────────────────────────────────────
 
-    suspend fun scanLocalMedia() = withContext(Dispatchers.IO) {
+    suspend fun scanLocalMedia(targetFolderUri: String = "") = withContext(Dispatchers.IO) {
         if (_isScanning.value) return@withContext
         _isScanning.value = true
         val foundSongs = mutableListOf<SongEntity>()
@@ -84,14 +85,32 @@ class MusicRepository(
             )
 
             // Filter out tracks shorter than 10 seconds and ringtones/alarms
-            val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= 10000"
+            var selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= 10000"
+            var selectionArgs: Array<String>? = null
+
+            if (targetFolderUri.isNotBlank()) {
+                try {
+                    val uri = Uri.parse(targetFolderUri)
+                    val pathSegment = uri.lastPathSegment?.substringAfterLast(":")
+                    if (!pathSegment.isNullOrBlank()) {
+                        val customFolder = File(android.os.Environment.getExternalStorageDirectory(), pathSegment)
+                        if (customFolder.exists()) {
+                            selection += " AND ${MediaStore.Audio.Media.DATA} LIKE ?"
+                            selectionArgs = arrayOf("${customFolder.absolutePath}/%")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("MusicRepository", "Failed to parse target folder URI", e)
+                }
+            }
+
             val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
 
             val cursor = context.contentResolver.query(
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                 projection,
                 selection,
-                null,
+                selectionArgs,
                 sortOrder
             )
 
@@ -297,6 +316,40 @@ class MusicRepository(
             Log.e("MusicRepository", "Failed to import playlists", e)
             false
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // SONG DELETION (MediaStore + local DB cleanup)
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Requests a system-confirmed delete for the given song.
+     * Returns an IntentSender the caller must launch (API 30+), or null when
+     * the song was deleted directly (legacy path) or the request failed.
+     */
+    suspend fun requestSongDelete(song: Song): IntentSender? = withContext(Dispatchers.IO) {
+        try {
+            val uri = Uri.parse(song.uriString)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                MediaStore.createDeleteRequest(context.contentResolver, listOf(uri)).intentSender
+            } else {
+                val rows = context.contentResolver.delete(uri, null, null)
+                if (rows > 0) deleteSongFromLibrary(song.id)
+                null
+            }
+        } catch (e: Exception) {
+            Log.e("MusicRepository", "Failed to request delete for ${song.title}", e)
+            null
+        }
+    }
+
+    /** Removes all local DB traces of a song (library, overrides, playlists, telemetry, lyrics). */
+    suspend fun deleteSongFromLibrary(songId: String) = withContext(Dispatchers.IO) {
+        libraryDao.deleteSong(songId)
+        libraryDao.deleteOverride(songId)
+        libraryDao.deleteLyrics(songId)
+        playlistDao.removeSongFromAllPlaylists(songId)
+        telemetryDao.deleteTelemetry(songId)
     }
 
     // ─────────────────────────────────────────────────────────────

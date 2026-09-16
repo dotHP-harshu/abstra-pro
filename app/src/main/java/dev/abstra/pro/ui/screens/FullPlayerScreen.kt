@@ -201,9 +201,17 @@ fun FullPlayerScreen(
                 contentAlignment = Alignment.Center
             ) {
                 when (designStyle) {
-                    PlayerDesignStyle.ROTATING_CD,
-                    PlayerDesignStyle.TURNTABLE_CD -> {
+                    PlayerDesignStyle.ROTATING_CD -> {
                         RotatingCdCenterpiece(
+                            song = currentSong,
+                            isPlaying = isPlaying,
+                            rotation = rotationAngle,
+                            colors = colors,
+                            modifier = Modifier.size(280.dp)
+                        )
+                    }
+                    PlayerDesignStyle.VINYL_RECORD -> {
+                        VinylRecordCenterpiece(
                             song = currentSong,
                             isPlaying = isPlaying,
                             rotation = rotationAngle,
@@ -479,8 +487,8 @@ fun FullPlayerScreen(
                         .clip(RoundedCornerShape(16.dp))
                         .clickable {
                             val nextStyle = when (designStyle) {
-                                PlayerDesignStyle.ROTATING_CD -> PlayerDesignStyle.TURNTABLE_CD
-                                PlayerDesignStyle.TURNTABLE_CD -> PlayerDesignStyle.POLAROID
+                                PlayerDesignStyle.ROTATING_CD -> PlayerDesignStyle.VINYL_RECORD
+                                PlayerDesignStyle.VINYL_RECORD -> PlayerDesignStyle.POLAROID
                                 PlayerDesignStyle.POLAROID -> PlayerDesignStyle.CASSETTE
                                 PlayerDesignStyle.CASSETTE -> PlayerDesignStyle.MINIMAL_ART
                                 PlayerDesignStyle.MINIMAL_ART -> PlayerDesignStyle.ROTATING_CD

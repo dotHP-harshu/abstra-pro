@@ -15,7 +15,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.abstra.pro.data.model.Song
 import dev.abstra.pro.ui.theme.AbstraColors
 
@@ -139,6 +141,147 @@ fun RotatingCdCenterpiece(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .offset(x = 6.dp, y = 6.dp)
+        )
+    }
+}
+
+// ==========================================
+// 01b. VINYL RECORD CENTERPIECE
+// (Restored from the original Abstra "04. Vinyl Record" preset:
+//  black LP + tonearm + plush bear + sparkles + floating heart)
+// ==========================================
+@Composable
+fun VinylRecordCenterpiece(
+    song: Song?,
+    isPlaying: Boolean,
+    rotation: Float,
+    colors: AbstraColors,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        // Floating Music Notes in top-left
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .offset(x = 8.dp, y = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "♪",
+                color = colors.primaryStrong,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            SparkleStarIcon(size = 12.dp, color = colors.primary)
+        }
+
+        // Spinning Black Vinyl Record LP — GPU-accelerated via graphicsLayer (battery optimized)
+        Box(
+            modifier = Modifier
+                .fillMaxSize(0.90f)
+                .graphicsLayer {
+                    rotationZ = if (isPlaying) rotation else 0f
+                }
+                .shadow(16.dp, shape = CircleShape, spotColor = Color(0x88000000))
+                .clip(CircleShape)
+                .background(Color(0xFF19161E))
+                .border(4.dp, Color(0xFF332B3A), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            // Vinyl Grooves & Sheen
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width
+                val h = size.height
+                val cx = w / 2f
+                val cy = h / 2f
+                val r = w / 2f
+
+                // Spiral / Concentric Grooves
+                val grooveRadii = listOf(0.92f, 0.86f, 0.80f, 0.74f, 0.68f, 0.62f)
+                grooveRadii.forEach { factor ->
+                    drawCircle(
+                        color = Color(0x3344384E),
+                        radius = r * factor,
+                        center = Offset(cx, cy),
+                        style = Stroke(width = 1.5f)
+                    )
+                }
+
+                // Glossy Vinyl Light Reflections (4-point gloss)
+                val reflection1 = Path().apply {
+                    moveTo(cx, cy)
+                    lineTo(cx + w * 0.45f, cy - h * 0.2f)
+                    lineTo(cx + w * 0.35f, cy - h * 0.4f)
+                    close()
+                }
+                drawPath(reflection1, Color(0x28FFFFFF))
+
+                val reflection2 = Path().apply {
+                    moveTo(cx, cy)
+                    lineTo(cx - w * 0.45f, cy + h * 0.2f)
+                    lineTo(cx - w * 0.35f, cy + h * 0.4f)
+                    close()
+                }
+                drawPath(reflection2, Color(0x28FFFFFF))
+            }
+
+            // Center Pink Label
+            Box(
+                modifier = Modifier
+                    .fillMaxSize(0.52f)
+                    .clip(CircleShape)
+                    .background(Color(0xFFFFB3D1))
+                    .border(2.5.dp, colors.primaryStrong, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                ThematicAlbumArt(
+                    trackId = song?.id ?: "demo",
+                    title = song?.title ?: "daydreams",
+                    artist = song?.artist ?: "lovelyy",
+                    uriString = song?.uriString ?: "",
+                    modifier = Modifier.fillMaxSize(),
+                    cornerRadius = 999.dp,
+                    showDetailsOnLarge = false
+                )
+
+                // Center Spindle Hole
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF19161E))
+                        .border(1.5.dp, Color.White, CircleShape)
+                )
+            }
+        }
+
+        // Turntable Tonearm Stylus in Top-Right
+        TurntableArmIllustration(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 6.dp, y = (-4).dp)
+                .size(110.dp)
+        )
+
+        // Cute Plush Teddy Bear in Bottom-Left
+        MascotBearIllustration(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .offset(x = 2.dp, y = 4.dp)
+                .size(62.dp)
+        )
+
+        // Floating Heart Gem in Bottom-Right
+        FloatingHeartBadge(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = 6.dp, y = 2.dp),
+            size = 32.dp,
+            fillColor = Color(0xFFFF85B3)
         )
     }
 }

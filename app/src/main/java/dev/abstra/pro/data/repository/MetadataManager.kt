@@ -43,4 +43,22 @@ object MetadataManager {
             false
         }
     }
+
+    /**
+     * Reads embedded lyrics (USLT / LYRICS frames) from an audio file via
+     * jaudiotagger. Returns null when the file has no usable lyrics tag.
+     */
+    fun readEmbeddedLyrics(filePath: String): String? {
+        return try {
+            val file = File(filePath)
+            if (!file.exists() || !file.canRead()) return null
+            val audioFile = AudioFileIO.read(file)
+            val tag = audioFile.tag ?: return null
+            val lyrics = tag.getFirst(FieldKey.LYRICS)
+            if (lyrics.isNullOrBlank()) null else lyrics
+        } catch (e: Exception) {
+            Log.d(TAG, "No embedded lyrics in $filePath: ${e.message}")
+            null
+        }
+    }
 }
