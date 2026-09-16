@@ -13,6 +13,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.filled.Tune
+
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,8 +34,10 @@ import dev.abstra.pro.data.model.StorageInfo
 import dev.abstra.pro.ui.components.SongListItem
 import dev.abstra.pro.ui.theme.LocalAbstraColors
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FoldersScreen(
+    allFolders: List<Folder>,
     folders: List<Folder>,
     storageVolumes: List<StorageInfo>,
     currentSong: Song?,
@@ -38,12 +46,14 @@ fun FoldersScreen(
     onPlayFolder: (Folder) -> Unit,
     onShuffleFolder: (Folder) -> Unit,
     onExcludeFolder: (Folder) -> Unit,
+    onRestoreFolder: (Folder) -> Unit,
     onRescanLibrary: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = LocalAbstraColors.current
     var selectedFolder by remember { mutableStateOf<Folder?>(null) }
     var selectedVolumeIndex by remember { mutableStateOf(0) }
+    var showFolderManager by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -74,18 +84,34 @@ fun FoldersScreen(
                         color = colors.textPrimary
                     )
 
-                    IconButton(
-                        onClick = onRescanLibrary,
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(colors.bgCard)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Rescan Storage",
-                            tint = colors.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { showFolderManager = true },
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(colors.bgCard)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Tune,
+                                contentDescription = "Manage folders",
+                                tint = colors.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(
+                            onClick = onRescanLibrary,
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(colors.bgCard)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Rescan Storage",
+                                tint = colors.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
 
@@ -196,6 +222,47 @@ fun FoldersScreen(
                                 onPlay = { onPlayFolder(item) },
                                 onExclude = { onExcludeFolder(item) }
                             )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (showFolderManager) {
+            ModalBottomSheet(
+                onDismissRequest = { showFolderManager = false },
+                containerColor = colors.bgSurface
+            ) {
+                Column(Modifier.padding(horizontal = 20.dp, vertical = 10.dp).padding(bottom = 24.dp)) {
+                    Text("Manage folders", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                    Spacer(Modifier.height(4.dp))
+                    Text("Toggle off to hide a folder's songs everywhere.", fontSize = 12.sp, color = colors.textSecondary)
+                    Spacer(Modifier.height(16.dp))
+                    
+                    androidx.compose.foundation.lazy.LazyColumn {
+                        items(allFolders, key = { it.path }) { folder ->
+                            val isIncluded = folders.any { it.path == folder.path }
+                            Row(
+                                Modifier.fillMaxWidth().clickable {
+                                    if (isIncluded) onExcludeFolder(folder)
+                                    else onRestoreFolder(folder)
+                                }.padding(vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = isIncluded,
+                                    onCheckedChange = { checked ->
+                                        if (checked) onRestoreFolder(folder)
+                                        else onExcludeFolder(folder)
+                                    }
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(folder.name, fontWeight = FontWeight.SemiBold, color = colors.textPrimary, fontSize = 15.sp)
+                                    Text("${folder.songCount} tracks", fontSize = 11.sp, color = colors.textSecondary, maxLines = 1)
+                                }
+                            }
+                            HorizontalDivider(color = colors.border.copy(alpha = 0.5f))
                         }
                     }
                 }

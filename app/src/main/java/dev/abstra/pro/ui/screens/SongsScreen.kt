@@ -5,6 +5,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -47,12 +50,13 @@ fun SongsScreen(
     onEditMetadata: (Song) -> Unit,
     onDeleteSong: (Song) -> Unit,
     onRescanLibrary: () -> Unit,
+    sortOption: SongSortOption,
+    onSortOptionChange: (SongSortOption) -> Unit,
     listState: androidx.compose.foundation.lazy.LazyListState = androidx.compose.foundation.lazy.rememberLazyListState(),
     modifier: Modifier = Modifier
 ) {
     val colors = LocalAbstraColors.current
     var searchQuery by remember { mutableStateOf("") }
-    var sortOption by remember { mutableStateOf(SongSortOption.TITLE_ASC) }
     var showSortMenu by remember { mutableStateOf(false) }
 
     // Multi-selection state
@@ -92,10 +96,15 @@ fun SongsScreen(
         }
     }
 
+    val focusManager = LocalFocusManager.current
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(colors.bgBackground)
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = { focusManager.clearFocus() })
+            }
     ) {
         // ─────────────────────────────────────────────────────────────
         // 1. TOP SEARCH & CONTROLS HEADER
@@ -230,7 +239,7 @@ fun SongsScreen(
                                             )
                                         },
                                         onClick = {
-                                            sortOption = opt
+                                            onSortOptionChange(opt)
                                             showSortMenu = false
                                         }
                                     )

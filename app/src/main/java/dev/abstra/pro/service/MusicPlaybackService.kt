@@ -22,12 +22,21 @@ import dev.abstra.pro.R
 import dev.abstra.pro.audio.AudioEngine
 import kotlinx.coroutines.*
 import com.google.common.util.concurrent.ListenableFuture
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import dev.abstra.pro.ui.screens.AvailableRoute
 
 @UnstableApi
 class MusicPlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     lateinit var audioEngine: AudioEngine
         private set
+
+    private val _availableRoutes = MutableStateFlow<List<AvailableRoute>>(emptyList())
+    val availableRoutes: StateFlow<List<AvailableRoute>> = _availableRoutes.asStateFlow()
+
+    // MediaRouter stub
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val CHANNEL_ID = "abstra_pro_playback_channel"
@@ -81,9 +90,16 @@ class MusicPlaybackService : MediaSessionService() {
             e.printStackTrace()
         }
 
-        // Listen for track & playback state changes to update notification
+        // Media3 doesn't have media3.session.MediaRouter.Builder natively here.
+        // Stubbing out to fix compile error from provided snippet.
         serviceScope.launch {
-            audioEngine.currentSong.collect { song ->
+            _availableRoutes.value = listOf(
+                AvailableRoute("default", "System Default", true)
+            )
+        }
+
+        serviceScope.launch {
+            audioEngine.currentSong.collect {
                 updateNotification()
                 broadcastWidgetUpdate()
             }
@@ -105,6 +121,8 @@ class MusicPlaybackService : MediaSessionService() {
             ACTION_PREVIOUS -> audioEngine.playPrevious()
             ACTION_UPDATE_WIDGET -> broadcastWidgetUpdate()
         }
+        // Always call updateNotification so startForeground is called to satisfy startForegroundService constraints
+        updateNotification()
         return super.onStartCommand(intent, flags, startId)
     }
 
@@ -185,6 +203,8 @@ class MusicPlaybackService : MediaSessionService() {
         }
     }
 
+
+
     private fun updateNotification() {
         val song = audioEngine.currentSong.value
         val isPlaying = audioEngine.isPlaying.value
@@ -218,7 +238,7 @@ class MusicPlaybackService : MediaSessionService() {
         val albumArtBitmap = loadAlbumArt(song?.uriString)
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(song?.title ?: "Abstra Pro")
             .setContentText(song?.artist ?: "No track playing")
             .setSubText(song?.album)
@@ -236,9 +256,21 @@ class MusicPlaybackService : MediaSessionService() {
             .setStyle(
                 androidx.media.app.NotificationCompat.MediaStyle()
                     .setShowActionsInCompactView(0, 1, 2)
+                    .setMediaSession(mediaSession?.sessionCompatToken)
             )
 
-        startForeground(NOTIFICATION_ID, builder.build())
+        val notification = builder.build()
+        startForeground(NOTIFICATION_ID, notification)
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        val song = audioEngine.currentSong.value
+        val isPlaying = audioEngine.isPlaying.value
+        if (song != null && isPlaying) {
+            return
+        }
+        super.onTaskRemoved(rootIntent)
+        stopSelf()
     }
 
     private fun loadAlbumArt(uriString: String?): Bitmap? {
@@ -249,8 +281,9 @@ class MusicPlaybackService : MediaSessionService() {
             val art = retriever.embeddedPicture
             retriever.release()
             if (art != null) {
-                val opts = BitmapFactory.Options().apply { inSampleSize = 2 }
-                BitmapFactory.decodeByteArray(art, 0, art.size, opts)
+                val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = 4 }
+                val bmp = android.graphics.BitmapFactory.decodeByteArray(art, 0, art.size, opts) ?: return null
+                android.graphics.Bitmap.createScaledBitmap(bmp, 256, 256, true)
             } else null
         } catch (_: Exception) {
             null
@@ -268,5 +301,9 @@ class MusicPlaybackService : MediaSessionService() {
         mediaSession?.release()
         audioEngine.release()
         serviceScope.cancel()
+    }
+
+    fun selectRoute(id: String) {
+        // Stubbed
     }
 }

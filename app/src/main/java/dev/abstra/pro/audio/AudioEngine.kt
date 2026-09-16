@@ -53,10 +53,14 @@ class AudioEngine(private val context: Context) {
     private val _currentIndex = MutableStateFlow(0)
     val currentIndex: StateFlow<Int> = _currentIndex.asStateFlow()
 
-    private val _repeatMode = MutableStateFlow(RepeatMode.REPEAT_ALL)
+    private val prefs = context.getSharedPreferences("abstra_prefs", Context.MODE_PRIVATE)
+
+    private val _repeatMode = MutableStateFlow(
+        RepeatMode.valueOf(prefs.getString("repeat_mode", RepeatMode.REPEAT_ALL.name) ?: RepeatMode.REPEAT_ALL.name)
+    )
     val repeatMode: StateFlow<RepeatMode> = _repeatMode.asStateFlow()
 
-    private val _isShuffle = MutableStateFlow(false)
+    private val _isShuffle = MutableStateFlow(prefs.getBoolean("shuffle_enabled", false))
     val isShuffle: StateFlow<Boolean> = _isShuffle.asStateFlow()
 
     private val _playbackSpeed = MutableStateFlow(1.0f)
@@ -219,7 +223,7 @@ class AudioEngine(private val context: Context) {
                 trackId = song.id,
                 initialPositionMs = 0L,
                 onProgressUpdate = { pos -> _currentPosition.value = pos },
-                onCompletion = { handleSongCompletion() }
+                onCompletion = { scope.launch { handleSongCompletion() } }
             )
             _isPlaying.value = true
             onSongStarted?.invoke(song)
@@ -242,6 +246,7 @@ class AudioEngine(private val context: Context) {
                 )
                 setDataSource(context, Uri.parse(song.uriString))
                 setOnPreparedListener { mp ->
+                    if (mediaPlayer !== this@apply) return@setOnPreparedListener
                     val s = _pendingSong.value ?: return@setOnPreparedListener
                     _currentSong.value = s
                     consecutiveFailures.set(0)
@@ -276,7 +281,7 @@ class AudioEngine(private val context: Context) {
             mediaPlayer = player
 
             player.setOnCompletionListener {
-                handleSongCompletion()
+                scope.launch { handleSongCompletion() }
             }
         } catch (e: Exception) {
             Log.e("AudioEngine", "Error playing song: ${song.title}", e)
@@ -287,14 +292,23 @@ class AudioEngine(private val context: Context) {
 
     fun resume() {
         if (!requestAudioFocus()) return
-        val song = _currentSong.value ?: return
+        val current = _currentSong.value
+        val pending = _pendingSong.value
+        if (current == null && pending == null) return
+
+        if (pending != null && current?.id != pending.id) {
+            Log.d("AudioEngine", "resume ignored: song ${pending.title} is still preparing")
+            return
+        }
+
+        val song = current ?: return
 
         if (song.id.startsWith("demo_")) {
             proceduralSynth.startPlayback(
                 trackId = song.id,
                 initialPositionMs = _currentPosition.value,
                 onProgressUpdate = { pos -> _currentPosition.value = pos },
-                onCompletion = { handleSongCompletion() }
+                onCompletion = { scope.launch { handleSongCompletion() } }
             )
             _isPlaying.value = true
             onPlaybackStateChange?.invoke(true)
@@ -326,7 +340,7 @@ class AudioEngine(private val context: Context) {
                 proceduralSynth.startPlayback(
                     song.id, positionMs,
                     onProgressUpdate = { pos -> _currentPosition.value = pos },
-                    onCompletion = { handleSongCompletion() }
+                    onCompletion = { scope.launch { handleSongCompletion() } }
                 )
             }
             return
@@ -393,7 +407,7 @@ class AudioEngine(private val context: Context) {
         }
     }
 
-    private fun handleSongCompletion() {
+    private suspend fun handleSongCompletion() {
         val s = _currentSong.value
         if (s != null) {
             onSongCompleted?.invoke(s)
@@ -407,9 +421,11 @@ class AudioEngine(private val context: Context) {
 
     fun toggleShuffle() {
         val current = _isShuffle.value
-        _isShuffle.value = !current
+        val newVal = !current
+        prefs.edit().putBoolean("shuffle_enabled", newVal).apply()
+        _isShuffle.value = newVal
         val activeSong = _currentSong.value
-        if (!current) {
+        if (newVal) {
             // Shuffle
             val q = _queue.value
             val idx = _currentIndex.value
@@ -424,11 +440,13 @@ class AudioEngine(private val context: Context) {
     }
 
     fun toggleRepeatMode() {
-        _repeatMode.value = when (_repeatMode.value) {
+        val newMode = when (_repeatMode.value) {
             RepeatMode.REPEAT_ALL -> RepeatMode.REPEAT_ONE
             RepeatMode.REPEAT_ONE -> RepeatMode.REPEAT_OFF
             RepeatMode.REPEAT_OFF -> RepeatMode.REPEAT_ALL
         }
+        prefs.edit().putString("repeat_mode", newMode.name).apply()
+        _repeatMode.value = newMode
     }
 
     private fun shuffledQueue(queue: List<Song>, currentIndex: Int): List<Song> {
@@ -446,7 +464,9 @@ class AudioEngine(private val context: Context) {
     private var isGaplessEnabled: Boolean = true
 
     fun setCrossfade(seconds: Int) {
-        crossfadeDurationSec = seconds.coerceIn(0, 12)
+        val valid = seconds.coerceIn(0, 12)
+        crossfadeDurationSec = valid
+        _crossfadeSeconds.value = valid
     }
 
     fun setGapless(enabled: Boolean) {
@@ -530,9 +550,19 @@ class AudioEngine(private val context: Context) {
         progressJob?.cancel()
         progressJob = scope.launch {
             while (isActive) {
-                if (_isPlaying.value && mediaPlayer != null) {
+                if (mediaPlayer != null) {
                     try {
-                        _currentPosition.value = mediaPlayer?.currentPosition?.toLong() ?: 0L
+                        val isActuallyPlaying = mediaPlayer?.isPlaying == true
+                        if (_isPlaying.value && !isActuallyPlaying) {
+                            _isPlaying.value = false
+                            onPlaybackStateChange?.invoke(false)
+                        } else if (!_isPlaying.value && isActuallyPlaying) {
+                            _isPlaying.value = true
+                            onPlaybackStateChange?.invoke(true)
+                        }
+                        if (isActuallyPlaying) {
+                            _currentPosition.value = mediaPlayer?.currentPosition?.toLong() ?: 0L
+                        }
                     } catch (_: Exception) {}
                 }
                 val delayMs = if (isInForeground) 200L else 1000L

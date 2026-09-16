@@ -24,6 +24,9 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import dev.abstra.pro.ui.components.MainNavigationTab
+import com.google.gson.Gson
+
+enum class FullPlayerBackground { GRADIENT, SOLID }
 
 class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val context: Context = application.applicationContext
@@ -31,6 +34,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val repository = MusicRepository(context, database)
     val audioEngine = AudioEngine(context)
     val aiEngine = AbstraAiEngine(context, database)
+
+    private val prefs = context.getSharedPreferences("abstra_prefs", Context.MODE_PRIVATE)
 
     // ── Navigation & UI State ──
     private val _currentTab = MutableStateFlow(MainNavigationTab.HOME)
@@ -48,24 +53,46 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _isSleepTimerDialogOpen = MutableStateFlow(false)
     val isSleepTimerDialogOpen: StateFlow<Boolean> = _isSleepTimerDialogOpen.asStateFlow()
 
+    private val _isOutputRoutePickerOpen = MutableStateFlow(false)
+    val isOutputRoutePickerOpen: StateFlow<Boolean> = _isOutputRoutePickerOpen.asStateFlow()
+
     private val _isCreatePlaylistDialogOpen = MutableStateFlow(false)
     val isCreatePlaylistDialogOpen: StateFlow<Boolean> = _isCreatePlaylistDialogOpen.asStateFlow()
 
     private val _editingMetadataSong = MutableStateFlow<Song?>(null)
     val editingMetadataSong: StateFlow<Song?> = _editingMetadataSong.asStateFlow()
 
-    private val prefs = context.getSharedPreferences("abstra_prefs", Context.MODE_PRIVATE)
-
-    private val _currentTheme = MutableStateFlow(AppTheme.COTTON_CANDY)
+    private val _currentTheme = MutableStateFlow(
+        AppTheme.values().getOrNull(prefs.getInt("current_theme_idx", 0)) ?: AppTheme.COTTON_CANDY
+    )
     val currentTheme: StateFlow<AppTheme> = _currentTheme.asStateFlow()
 
-    private val _currentDesignStyle = MutableStateFlow(PlayerDesignStyle.VINYL_RECORD)
+    private val _visualizerEnabled = MutableStateFlow(prefs.getBoolean("visualizer_enabled", true))
+    val visualizerEnabled: StateFlow<Boolean> = _visualizerEnabled.asStateFlow()
+
+    private val _fullPlayerBg = MutableStateFlow(
+        FullPlayerBackground.valueOf(
+            prefs.getString("full_player_bg", FullPlayerBackground.GRADIENT.name) 
+                ?: FullPlayerBackground.GRADIENT.name
+        )
+    )
+    val fullPlayerBg: StateFlow<FullPlayerBackground> = _fullPlayerBg.asStateFlow()
+
+    private val _showTabBar = MutableStateFlow(prefs.getBoolean("show_tab_bar", true))
+    val showTabBar: StateFlow<Boolean> = _showTabBar.asStateFlow()
+
+    private val _customAppName = MutableStateFlow(prefs.getString("custom_app_name", "Abstra Pro") ?: "Abstra Pro")
+    val customAppName: StateFlow<String> = _customAppName.asStateFlow()
+
+    private val _currentDesignStyle = MutableStateFlow(
+        PlayerDesignStyle.values().getOrNull(prefs.getInt("current_design_idx", 1)) ?: PlayerDesignStyle.VINYL_RECORD
+    )
     val currentDesignStyle: StateFlow<PlayerDesignStyle> = _currentDesignStyle.asStateFlow()
 
-    private val _writePhysicalTags = MutableStateFlow(false)
+    private val _writePhysicalTags = MutableStateFlow(prefs.getBoolean("write_physical_tags", false))
     val writePhysicalTags: StateFlow<Boolean> = _writePhysicalTags.asStateFlow()
 
-    private val _minDurationFilterSec = MutableStateFlow(10)
+    private val _minDurationFilterSec = MutableStateFlow(prefs.getInt("min_duration_filter_sec", 10))
     val minDurationFilterSec: StateFlow<Int> = _minDurationFilterSec.asStateFlow()
 
     private val _musicFolderUri = MutableStateFlow(prefs.getString("music_folder_uri", "") ?: "")
@@ -78,7 +105,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // ── Audio Engine StateFlows Exposed to UI ──
-    val currentSong: StateFlow<Song?> = audioEngine.currentSong
+    val currentSong: StateFlow<Song?> = kotlinx.coroutines.flow.combine(audioEngine.currentSong, repository.allSongs) { current, all ->
+        if (current == null) null
+        else all.find { it.id == current.id } ?: current
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val pendingSong: StateFlow<Song?> = audioEngine.pendingSong
     val isPlaying: StateFlow<Boolean> = audioEngine.isPlaying
     val currentPosition: StateFlow<Long> = audioEngine.currentPosition
@@ -92,6 +122,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val gaplessEnabled: StateFlow<Boolean> = audioEngine.gaplessEnabled
     val sleepTimerRemainingSec: StateFlow<Int> = audioEngine.sleepTimerSecondsRemaining
 
+    val availableRoutes: StateFlow<List<dev.abstra.pro.ui.screens.AvailableRoute>> = 
+        dev.abstra.pro.service.MusicPlaybackService.instance?.availableRoutes ?: MutableStateFlow(emptyList())
+
+    fun selectRoute(id: String) {
+        dev.abstra.pro.service.MusicPlaybackService.instance?.selectRoute(id)
+    }
+
     // ── Repository Library Data ──
     val allSongs: StateFlow<List<Song>> = repository.allSongs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -101,6 +138,27 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     val totalPlayCount: StateFlow<Int> = repository.totalPlayCount
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    // ── Recently Played ──
+    private val _recentlyPlayedIds = MutableStateFlow<List<String>>(
+        prefs.getString("recently_played_ids", "")
+            ?.split(",")?.filter { it.isNotBlank() }
+            ?: emptyList()
+    )
+    val recentlyPlayedIds: StateFlow<List<String>> = _recentlyPlayedIds.asStateFlow()
+
+    val recentlyPlayed: StateFlow<List<Song>> = combine(
+        recentlyPlayedIds, allSongs
+    ) { ids, songs ->
+        ids.mapNotNull { id -> songs.find { it.id == id } }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun addToRecentlyPlayed(songId: String) {
+        val current = _recentlyPlayedIds.value
+        val updated = (listOf(songId) + current.filter { it != songId }).take(20)
+        _recentlyPlayedIds.value = updated
+        prefs.edit().putString("recently_played_ids", updated.joinToString(",")).apply()
+    }
 
     // ── Excluded (hidden) folders, persisted in prefs ──
     private val _excludedFolderPaths = MutableStateFlow(
@@ -164,6 +222,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         audioEngine.onSongStarted = { song ->
             aiEngine.onSongStarted(song)
             loadLyricsForSong(song)
+            addToRecentlyPlayed(song.id)
         }
         audioEngine.onSongCompleted = { song ->
             aiEngine.onSongCompleted(song)
@@ -171,6 +230,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         audioEngine.onSongSkipped = { song, playedSec, totalSec ->
             aiEngine.onSongSkipped(song, playedSec, totalSec)
         }
+
+        // Init Audio Engine settings from SharedPreferences
+        audioEngine.setCrossfade(prefs.getInt("crossfade_sec", 0))
 
         // Initial scan on boot
         viewModelScope.launch {
@@ -183,6 +245,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     // ── Navigation Functions ──
     fun setTab(tab: MainNavigationTab) {
+        prefs.edit().putInt("current_tab_idx", tab.ordinal).apply()
         _currentTab.value = tab
     }
 
@@ -202,6 +265,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _isSleepTimerDialogOpen.value = open
     }
 
+    fun setOutputRoutePickerOpen(open: Boolean) {
+        _isOutputRoutePickerOpen.value = open
+    }
+
     fun setCreatePlaylistDialogOpen(open: Boolean) {
         _isCreatePlaylistDialogOpen.value = open
     }
@@ -211,18 +278,42 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setTheme(theme: AppTheme) {
+        prefs.edit().putInt("current_theme_idx", theme.ordinal).apply()
         _currentTheme.value = theme
     }
 
+    fun setVisualizerEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("visualizer_enabled", enabled).apply()
+        _visualizerEnabled.value = enabled
+    }
+
+    fun setFullPlayerBg(bg: FullPlayerBackground) {
+        prefs.edit().putString("full_player_bg", bg.name).apply()
+        _fullPlayerBg.value = bg
+    }
+
+    fun setShowTabBar(show: Boolean) {
+        prefs.edit().putBoolean("show_tab_bar", show).apply()
+        _showTabBar.value = show
+    }
+
+    fun setCustomAppName(name: String) {
+        prefs.edit().putString("custom_app_name", name).apply()
+        _customAppName.value = name
+    }
+
     fun setDesignStyle(style: PlayerDesignStyle) {
+        prefs.edit().putInt("current_design_idx", style.ordinal).apply()
         _currentDesignStyle.value = style
     }
 
     fun setWritePhysicalTags(write: Boolean) {
+        prefs.edit().putBoolean("write_physical_tags", write).apply()
         _writePhysicalTags.value = write
     }
 
     fun setMinDurationFilterSec(seconds: Int) {
+        prefs.edit().putInt("min_duration_filter_sec", seconds).apply()
         _minDurationFilterSec.value = seconds
         rescanLibrary()
     }
@@ -319,6 +410,17 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun closePlaylistPicker() { _playlistPickerForSong.value = null }
 
     // ── Library & Playlist Operations ──
+    private val _sortOption = MutableStateFlow(
+        runCatching { dev.abstra.pro.data.model.SongSortOption.valueOf(prefs.getString("sort_option", dev.abstra.pro.data.model.SongSortOption.TITLE_ASC.name)!!) }
+            .getOrDefault(dev.abstra.pro.data.model.SongSortOption.TITLE_ASC)
+    )
+    val sortOption: StateFlow<dev.abstra.pro.data.model.SongSortOption> = _sortOption.asStateFlow()
+
+    fun setSortOption(option: dev.abstra.pro.data.model.SongSortOption) {
+        prefs.edit().putString("sort_option", option.name).apply()
+        _sortOption.value = option
+    }
+
     fun toggleFavorite(song: Song) {
         viewModelScope.launch {
             repository.toggleFavorite(song.id, song.isFavorite)
@@ -491,8 +593,27 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun persistNowPlaying() {
+        val song = audioEngine.currentSong.value ?: return
+        prefs.edit()
+            .putString("last_song_id", song.id)
+            .putLong("last_position_ms", audioEngine.currentPosition.value)
+            .putString("last_queue_json", Gson().toJson(audioEngine.queue.value))
+            .apply()
+    }
+
+
+    fun clearLastSession() {
+        prefs.edit()
+            .remove("last_song_id")
+            .remove("last_position_ms")
+            .remove("last_queue_json")
+            .apply()
+    }
+
     override fun onCleared() {
         super.onCleared()
+        persistNowPlaying()
         audioEngine.release()
     }
 }

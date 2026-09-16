@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Favorite
 fun HomeScreen(
     currentSong: Song?,
     isPlaying: Boolean,
+    recentlyPlayed: List<Song>,
     recentlyAdded: List<Song>,
     playlists: List<Playlist>,
     aiMixes: List<AiMix>,
@@ -76,90 +77,107 @@ fun HomeScreen(
         }
 
         // ─────────────────────────────────────────────────────────────
-        // 1. HERO "CONTINUE LISTENING" CARD
+                // ─────────────────────────────────────────────────────────────
+        // 1. RECENTLY PLAYED
         // ─────────────────────────────────────────────────────────────
-        item {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp)
-                    .shadow(12.dp, RoundedCornerShape(26.dp), spotColor = colors.primary.copy(alpha = 0.35f))
-                    .border(1.5.dp, colors.border, RoundedCornerShape(26.dp))
-                    .clip(RoundedCornerShape(26.dp))
-                    .clickable { onExpandPlayer() },
-                color = colors.bgSurface,
-                shape = RoundedCornerShape(26.dp)
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    // Soft ambient gradient bleed
-                    val heroGradient = remember(colors.primary) {
-                        Brush.horizontalGradient(
-                            listOf(colors.primary.copy(alpha = 0.18f), Color.Transparent)
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(heroGradient)
+        if (recentlyPlayed.isNotEmpty()) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "RECENTLY PLAYED",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = colors.textHeading,
+                        fontWeight = FontWeight.ExtraBold
                     )
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        contentPadding = PaddingValues(horizontal = 2.dp)
                     ) {
-                        ThematicAlbumArt(
-                            trackId = currentSong?.id ?: "demo_daydreams",
-                            title = currentSong?.title ?: "daydreams",
-                            artist = currentSong?.artist ?: "Abstra",
-                            uriString = currentSong?.uriString ?: "",
-                            modifier = Modifier
-                                .size(90.dp)
-                                .clip(RoundedCornerShape(20.dp)),
-                            cornerRadius = 20.dp
-                        )
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = "CONTINUE LISTENING",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = colors.primaryStrong,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = currentSong?.title ?: "Select a track",
-                                style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp),
-                                color = colors.textHeading,
-                                maxLines = 1
-                            )
-                            Text(
-                                text = currentSong?.artist ?: "Abstra Pro",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = colors.textMuted,
-                                maxLines = 1
-                            )
+                        items(recentlyPlayed.take(12), key = { it.id }) { song ->
+                            Column(
+                                modifier = Modifier
+                                    .width(110.dp)
+                                    .clickable { onSongClick(song) }
+                            ) {
+                                ThematicAlbumArt(
+                                    trackId = song.id,
+                                    title = song.title,
+                                    artist = song.artist,
+                                    uriString = song.uriString,
+                                    modifier = Modifier
+                                        .size(110.dp)
+                                        .shadow(6.dp, RoundedCornerShape(18.dp), spotColor = colors.primary.copy(alpha = 0.25f))
+                                        .clip(RoundedCornerShape(18.dp)),
+                                    cornerRadius = 18.dp
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = song.title,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = colors.textHeading,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = song.artist,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = colors.textMuted,
+                                    maxLines = 1
+                                )
+                            }
                         }
+                    }
+                }
+            }
+        }
 
-                        FilledIconButton(
-                            onClick = onTogglePlay,
-                            modifier = Modifier.size(52.dp),
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = colors.primary,
-                                contentColor = Color.White
-                            )
-                        ) {
-                            Icon(
-                                if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = "Play/Pause",
-                                modifier = Modifier.size(28.dp)
-                            )
+// 3. RECENTLY ADDED
+        // ─────────────────────────────────────────────────────────────
+        if (recentlyAdded.isNotEmpty()) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "RECENTLY ADDED",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = colors.textHeading,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        contentPadding = PaddingValues(horizontal = 2.dp)
+                    ) {
+                        items(recentlyAdded.take(12), key = { it.id }) { song ->
+                            Column(
+                                modifier = Modifier
+                                    .width(110.dp)
+                                    .clickable { onSongClick(song) }
+                            ) {
+                                ThematicAlbumArt(
+                                    trackId = song.id,
+                                    title = song.title,
+                                    artist = song.artist,
+                                    uriString = song.uriString,
+                                    modifier = Modifier
+                                        .size(110.dp)
+                                        .shadow(6.dp, RoundedCornerShape(18.dp), spotColor = colors.primary.copy(alpha = 0.25f))
+                                        .clip(RoundedCornerShape(18.dp)),
+                                    cornerRadius = 18.dp
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = song.title,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = colors.textHeading,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = song.artist,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = colors.textMuted,
+                                    maxLines = 1
+                                )
+                            }
                         }
                     }
                 }
@@ -244,60 +262,6 @@ fun HomeScreen(
                                         )
                                     }
                                 }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // ─────────────────────────────────────────────────────────────
-        // 3. RECENTLY ADDED
-        // ─────────────────────────────────────────────────────────────
-        if (recentlyAdded.isNotEmpty()) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "RECENTLY ADDED",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = colors.textHeading,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        contentPadding = PaddingValues(horizontal = 2.dp)
-                    ) {
-                        items(recentlyAdded.take(12), key = { it.id }) { song ->
-                            Column(
-                                modifier = Modifier
-                                    .width(110.dp)
-                                    .clickable { onSongClick(song) }
-                            ) {
-                                ThematicAlbumArt(
-                                    trackId = song.id,
-                                    title = song.title,
-                                    artist = song.artist,
-                                    uriString = song.uriString,
-                                    modifier = Modifier
-                                        .size(110.dp)
-                                        .shadow(6.dp, RoundedCornerShape(18.dp), spotColor = colors.primary.copy(alpha = 0.25f))
-                                        .clip(RoundedCornerShape(18.dp)),
-                                    cornerRadius = 18.dp
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = song.title,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = colors.textHeading,
-                                    maxLines = 1
-                                )
-                                Text(
-                                    text = song.artist,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = colors.textMuted,
-                                    maxLines = 1
-                                )
                             }
                         }
                     }

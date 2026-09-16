@@ -462,9 +462,10 @@ private fun SmartPlaylistDetailView(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.weight(1f, fill = false)
             ) {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Back",
@@ -475,14 +476,21 @@ private fun SmartPlaylistDetailView(
                     text = title,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = colors.textPrimary
+                    color = colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.wrapContentWidth(Alignment.End),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 FilledTonalButton(
                     onClick = onPlayAll,
                     shape = RoundedCornerShape(16.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = colors.bgCard,
                         contentColor = colors.textPrimary
@@ -495,6 +503,7 @@ private fun SmartPlaylistDetailView(
                 Button(
                     onClick = onShuffleAll,
                     shape = RoundedCornerShape(16.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = colors.primary,
                         contentColor = Color.White

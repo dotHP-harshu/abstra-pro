@@ -44,16 +44,16 @@ fun RotatingCdCenterpiece(
     showLoadingShimmer: Boolean = false
 ) {
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .testTag("preset_rotating_cd"),
         contentAlignment = Alignment.Center
     ) {
-        // Rotating Vinyl / CD disc (GPU-accelerated via graphicsLayer)
+        // Rotating CD Body
         Box(
             modifier = Modifier
                 .fillMaxSize(0.92f)
-                .graphicsLayer {
-                    rotationZ = if (isPlaying) rotation else 0f
-                }
+                .rotate(if (isPlaying) rotation else 0f)
                 .shadow(16.dp, shape = CircleShape, spotColor = colors.primary.copy(alpha = 0.4f))
                 .clip(CircleShape)
                 .background(
@@ -67,10 +67,10 @@ fun RotatingCdCenterpiece(
                         )
                     )
                 )
-                .border(3.5.dp, Color.White, CircleShape),
+                .border(3.5.dp, Color(0xFFFFFFFF), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            // Metallic / Holographic iridescent sheen & concentric grooves
+            // Metallic / Holographic rainbow light sheen streaks
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val w = size.width
                 val h = size.height
@@ -78,9 +78,24 @@ fun RotatingCdCenterpiece(
                 val cy = h / 2f
 
                 // Concentric data grooves
-                drawCircle(Color(0x33FFFFFF), radius = w * 0.42f, center = Offset(cx, cy), style = Stroke(width = 1.5f))
-                drawCircle(Color(0x28E14E86), radius = w * 0.38f, center = Offset(cx, cy), style = Stroke(width = 1f))
-                drawCircle(Color(0x33FFFFFF), radius = w * 0.34f, center = Offset(cx, cy), style = Stroke(width = 1.5f))
+                drawCircle(
+                    color = Color(0x33FFFFFF),
+                    radius = w * 0.42f,
+                    center = Offset(cx, cy),
+                    style = Stroke(width = 1.5f)
+                )
+                drawCircle(
+                    color = Color(0x28E14E86),
+                    radius = w * 0.38f,
+                    center = Offset(cx, cy),
+                    style = Stroke(width = 1f)
+                )
+                drawCircle(
+                    color = Color(0x33FFFFFF),
+                    radius = w * 0.34f,
+                    center = Offset(cx, cy),
+                    style = Stroke(width = 1.5f)
+                )
 
                 // Rainbow iridescent sheen triangle fans
                 val sheenPath1 = Path().apply {
@@ -128,7 +143,7 @@ fun RotatingCdCenterpiece(
                         showLoadingShimmer = showLoadingShimmer
                     )
 
-                    // Center Spindle Hole
+                    // Spindle Hole
                     Box(
                         modifier = Modifier
                             .size(20.dp)
@@ -140,16 +155,16 @@ fun RotatingCdCenterpiece(
             }
         }
 
-        // Decorative Bow on top-left edge
+        // Cute Bow on top-left edge of the CD
         BowRibbonIcon(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .offset(x = 6.dp, y = 6.dp)
-                .size(44.dp)
+                .size(46.dp)
         )
 
-        // Cute Cassette Tape Sticker on bottom-right edge
-        TapeStickerBadge(
+        // Cute Cassette Sticker on bottom-right edge ("♥ mix")
+        CassetteTapeSticker(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .offset(x = 6.dp, y = 6.dp)
@@ -409,18 +424,4 @@ fun BowRibbonIcon(modifier: Modifier = Modifier) {
     }
 }
 
-@Composable
-fun TapeStickerBadge(modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier.shadow(4.dp, RoundedCornerShape(6.dp)),
-        shape = RoundedCornerShape(6.dp),
-        color = Color(0xFFFFF0F5)
-    ) {
-        Text(
-            text = "♥ MIX",
-            style = MaterialTheme.typography.labelSmall,
-            color = Color(0xFFE14E86),
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-        )
-    }
-}
+

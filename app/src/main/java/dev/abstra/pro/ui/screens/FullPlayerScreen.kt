@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import dev.abstra.pro.ui.util.detectVerticalSwipes
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,6 +33,7 @@ import dev.abstra.pro.data.model.RepeatMode
 import dev.abstra.pro.data.model.Song
 import dev.abstra.pro.ui.components.*
 import dev.abstra.pro.ui.theme.LocalAbstraColors
+import dev.abstra.pro.ui.viewmodel.FullPlayerBackground
 import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,6 +48,9 @@ fun FullPlayerScreen(
     isShuffle: Boolean,
     sleepTimerRemainingSec: Int,
     designStyle: PlayerDesignStyle,
+    backgroundStyle: FullPlayerBackground,
+    showVisualizer: Boolean,
+    onToggleVisualizer: () -> Unit,
     onTogglePlay: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
@@ -76,14 +81,17 @@ fun FullPlayerScreen(
         )
     )
 
-    val backgroundBrush = remember(dominantColor, colors.bgBackground) {
-        Brush.verticalGradient(
-            colors = listOf(
-                dominantColor.copy(alpha = 0.28f),
-                colors.bgBackground.copy(alpha = 0.95f),
-                colors.bgBackground
+    val bgModifier = when (backgroundStyle) {
+        FullPlayerBackground.GRADIENT -> Modifier.background(
+            Brush.verticalGradient(
+                colors = listOf(
+                    dominantColor.copy(alpha = 0.28f),
+                    colors.bgBackground.copy(alpha = 0.95f),
+                    colors.bgBackground
+                )
             )
         )
+        FullPlayerBackground.SOLID -> Modifier.background(colors.bgBackground)
     }
 
     val showLoadingShimmer = currentSong != null && !isPlaying && pendingSong != null
@@ -91,7 +99,7 @@ fun FullPlayerScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(backgroundBrush)
+            .then(bgModifier)
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
                     onDragEnd = {
@@ -106,6 +114,13 @@ fun FullPlayerScreen(
                     onHorizontalDrag = { _, dragAmount ->
                         dragAccumulator += dragAmount
                     }
+                )
+            }
+            .pointerInput(Unit) {
+                detectVerticalSwipes(
+                    thresholdPx = 100.dp.toPx(),
+                    onSwipeUp = { /* no-op when already expanded */ },
+                    onSwipeDown = { onCollapse() }
                 )
             }
             .statusBarsPadding()
@@ -288,13 +303,18 @@ fun FullPlayerScreen(
             // ─────────────────────────────────────────────────────────────
             // 4. WAVEFORM VISUALIZER (Palette-Tinted)
             // ─────────────────────────────────────────────────────────────
-            WaveformVisualizer(
-                isPlaying = isPlaying,
-                tintColor = dominantColor,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(38.dp)
-            )
+            if (showVisualizer) {
+                WaveformVisualizer(
+                    isPlaying = isPlaying,
+                    tintColor = dominantColor,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(38.dp)
+                        .clickable { onToggleVisualizer() }
+                )
+            } else {
+                Spacer(modifier = Modifier.fillMaxWidth().height(8.dp))
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 

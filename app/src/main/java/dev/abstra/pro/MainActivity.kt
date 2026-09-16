@@ -2,6 +2,9 @@ package dev.abstra.pro
 
 import android.Manifest
 import android.content.pm.PackageManager
+import dev.abstra.pro.ui.util.detectVerticalSwipes
+import java.io.InputStream
+import java.io.OutputStream
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -18,6 +21,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.util.fastAny
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.abstra.pro.data.model.Folder
@@ -31,7 +40,35 @@ import dev.abstra.pro.ui.viewmodel.MusicViewModel
 import kotlinx.coroutines.launch
 import dev.abstra.pro.ui.components.AddToPlaylistDialog
 
+import android.content.Intent
+import android.content.ServiceConnection
+import android.content.ComponentName
+import android.os.IBinder
+import androidx.lifecycle.ViewModelProvider
+import dev.abstra.pro.service.MusicPlaybackService
+
 class MainActivity : ComponentActivity() {
+
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {}
+        override fun onServiceDisconnected(name: ComponentName?) {}
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val viewModel = ViewModelProvider(this)[MusicViewModel::class.java]
+        viewModel.audioEngine.setForegroundState(true)
+        val intent = Intent(this, MusicPlaybackService::class.java)
+        ContextCompat.startForegroundService(this, intent)
+        bindService(intent, serviceConnection, android.content.Context.BIND_AUTO_CREATE)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        val viewModel = ViewModelProvider(this)[MusicViewModel::class.java]
+        viewModel.audioEngine.setForegroundState(false)
+        viewModel.persistNowPlaying()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,6 +86,7 @@ class MainActivity : ComponentActivity() {
             val isCreatePlaylistDialogOpen by viewModel.isCreatePlaylistDialogOpen.collectAsState()
             val editingSong by viewModel.editingMetadataSong.collectAsState()
             val playlistPickerForSong by viewModel.playlistPickerForSong.collectAsState()
+            val isOutputRoutePickerOpen by viewModel.isOutputRoutePickerOpen.collectAsState()
             
             var showQueueSheet by remember { mutableStateOf(false) }
 
@@ -63,6 +101,10 @@ class MainActivity : ComponentActivity() {
             val playbackSpeed by viewModel.playbackSpeed.collectAsState()
             val sleepTimerRemaining by viewModel.sleepTimerRemainingSec.collectAsState()
             val currentDesignStyle by viewModel.currentDesignStyle.collectAsState()
+            val visualizerEnabled by viewModel.visualizerEnabled.collectAsState()
+            val fullPlayerBg by viewModel.fullPlayerBg.collectAsState()
+            val showTabBar by viewModel.showTabBar.collectAsState()
+            val appName by viewModel.customAppName.collectAsState()
             val crossfadeSeconds by viewModel.crossfadeSeconds.collectAsState()
             val gaplessEnabled by viewModel.gaplessEnabled.collectAsState()
             val minDurationFilterSec by viewModel.minDurationFilterSec.collectAsState()
@@ -71,11 +113,13 @@ class MainActivity : ComponentActivity() {
             // Library data
             val allSongs by viewModel.allSongs.collectAsState()
             val visibleSongs by viewModel.visibleSongs.collectAsState()
+            val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
             val playlists by viewModel.playlists.collectAsState()
             val aiMixes by viewModel.aiMixes.collectAsState()
             val lyricsLines by viewModel.currentLyrics.collectAsState()
             val lyricsOffsetMs by viewModel.lyricsTimeOffsetMs.collectAsState()
             val lifetimeMs by viewModel.totalLifetimePlaytime.collectAsState()
+            val availableRoutes by viewModel.availableRoutes.collectAsState()
 
             // Hoisted List States
             val songsListState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -189,18 +233,30 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // 1. Top Segmented Pill Tabs
-                        TopSegmentedTabs(
-                            selectedTab = MainNavigationTab.values()[pagerState.currentPage],
-                            onTabSelected = { tab ->
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(tab.ordinal)
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
+                        if (showTabBar) {
+                            TopSegmentedTabs(
+                                selectedTab = MainNavigationTab.values()[pagerState.currentPage],
+                                onTabSelected = { tab ->
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(tab.ordinal)
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        } else {
+                            AppHeader(
+                                appName = appName,
+                                currentPage = pagerState.currentPage,
+                                pageCount = MainNavigationTab.values().size,
+                                colors = colors,
+                                onTabRequested = { page ->
+                                    coroutineScope.launch { pagerState.animateScrollToPage(page) }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
 
                         // 2. Active Screen Content
                         androidx.compose.foundation.pager.HorizontalPager(
@@ -215,6 +271,7 @@ class MainActivity : ComponentActivity() {
                                     HomeScreen(
                                         currentSong = currentSong,
                                         isPlaying = isPlaying,
+                                        recentlyPlayed = recentlyPlayed,
                                         recentlyAdded = visibleSongs.sortedByDescending { it.dateAdded }.take(10),
                                         playlists = playlists,
                                         aiMixes = aiMixes,
@@ -256,6 +313,8 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onRescanLibrary = { viewModel.rescanLibrary() },
+                                        sortOption = viewModel.sortOption.collectAsState().value,
+                                        onSortOptionChange = { viewModel.setSortOption(it) },
                                         listState = songsListState
                                     )
                                 }
@@ -279,11 +338,9 @@ class MainActivity : ComponentActivity() {
                                 }
                                 MainNavigationTab.FOLDERS -> {
                                     val excluded by viewModel.excludedFolderPaths.collectAsState()
-                                    val folders = remember(allSongs, excluded) {
-                                        val excludedSet = excluded
+                                    val allFolders = remember(allSongs) {
                                         allSongs.asSequence()
                                             .mapNotNull { java.io.File(it.filePath).parent }
-                                            .filter { it !in excludedSet }
                                             .distinct()
                                             .map { path ->
                                                 val songs = allSongs.filter { java.io.File(it.filePath).parent == path }
@@ -292,12 +349,16 @@ class MainActivity : ComponentActivity() {
                                             .sortedBy { it.name }
                                             .toList()
                                     }
+                                    val visibleFolders = remember(allFolders, excluded) {
+                                        allFolders.filter { it.path !in excluded }
+                                    }
                                     
                                     val context = androidx.compose.ui.platform.LocalContext.current
                                     val realVolumes = remember { getStorageVolumes(context) }
 
                                     FoldersScreen(
-                                        folders = folders,
+                                        allFolders = allFolders,
+                                        folders = visibleFolders,
                                         storageVolumes = realVolumes,
                                         currentSong = currentSong,
                                         isPlaying = isPlaying,
@@ -305,6 +366,7 @@ class MainActivity : ComponentActivity() {
                                         onPlayFolder = { f -> viewModel.playQueue(f.songs) },
                                         onShuffleFolder = { f -> viewModel.shuffleQueue(f.songs) },
                                         onExcludeFolder = { folder -> viewModel.excludeFolder(folder.path) },
+                                        onRestoreFolder = { folder -> viewModel.restoreFolder(folder.path) },
                                         onRescanLibrary = { viewModel.rescanLibrary() }
                                     )
                                 }
@@ -314,6 +376,14 @@ class MainActivity : ComponentActivity() {
                                         onThemeChange = { viewModel.setTheme(it) },
                                         currentDesignStyle = currentDesignStyle,
                                         onDesignStyleChange = { viewModel.setDesignStyle(it) },
+                                        visualizerEnabled = visualizerEnabled,
+                                        onVisualizerToggle = { viewModel.setVisualizerEnabled(it) },
+                                        fullPlayerBg = fullPlayerBg,
+                                        onFullPlayerBgChange = { viewModel.setFullPlayerBg(it) },
+                                        showTabBar = showTabBar,
+                                        onShowTabBarToggle = { viewModel.setShowTabBar(it) },
+                                        appName = appName,
+                                        onAppNameChange = { viewModel.setCustomAppName(it) },
                                         crossfadeSeconds = crossfadeSeconds,
                                         onCrossfadeChange = { viewModel.setCrossfade(it) },
                                         gaplessEnabled = gaplessEnabled,
@@ -333,13 +403,12 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // 3. Floating MiniPlayer (Visible whenever not expanded and song is present)
+                    // 3. Floating MiniPlayer
                     AnimatedVisibility(
                         visible = currentSong != null && !isPlayerExpanded,
                         enter = slideInVertically { it } + fadeIn(),
                         exit = slideOutVertically { it } + fadeOut(),
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
+                        modifier = Modifier.align(Alignment.BottomCenter)
                     ) {
                         MiniPlayer(
                             song = currentSong,
@@ -348,7 +417,18 @@ class MainActivity : ComponentActivity() {
                             onTogglePlay = { viewModel.togglePlayPause() },
                             onNext = { viewModel.skipNext() },
                             onPrevious = { viewModel.skipPrevious() },
-                            onClick = { viewModel.setPlayerExpanded(true) }
+                            onClick = { viewModel.setPlayerExpanded(true) },
+                            modifier = Modifier.pointerInput(isPlayerExpanded) {
+                                detectVerticalSwipes(
+                                    thresholdPx = 50.dp.toPx(),
+                                    onSwipeUp = {
+                                        if (!isPlayerExpanded) viewModel.setPlayerExpanded(true)
+                                    },
+                                    onSwipeDown = {
+                                        if (isPlayerExpanded) viewModel.setPlayerExpanded(false)
+                                    }
+                                )
+                            }
                         )
                     }
 
@@ -360,30 +440,34 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize()
                     ) {
                         FullPlayerScreen(
-                            currentSong = currentSong,
-                            pendingSong = pendingSong,
-                            isPlaying = isPlaying,
-                            currentPosition = currentPosition,
-                            duration = duration,
-                            repeatMode = repeatMode,
-                            isShuffle = isShuffle,
-                            sleepTimerRemainingSec = sleepTimerRemaining,
-                            designStyle = currentDesignStyle,
-                            onTogglePlay = { viewModel.togglePlayPause() },
-                            onPrevious = { viewModel.skipPrevious() },
-                            onNext = { viewModel.skipNext() },
-                            onSeekTo = { viewModel.seekTo(it) },
-                            onToggleRepeat = { viewModel.toggleRepeat() },
-                            onToggleShuffle = { viewModel.toggleShuffle() },
-                            onToggleFavorite = { viewModel.toggleFavorite(it) },
-                            onOpenQueue = { showQueueSheet = true },
-                            onOpenLyrics = { viewModel.setLyricsOpen(true) },
-                            onOpenEqualizer = { viewModel.setEqualizerOpen(true) },
-                            onOpenSleepTimer = { viewModel.setSleepTimerDialogOpen(true) },
-                            onStyleChange = { viewModel.setDesignStyle(it) },
-                            onCollapse = { viewModel.setPlayerExpanded(false) }
-                        )
-                    }
+                                currentSong = currentSong,
+                                pendingSong = pendingSong,
+                                isPlaying = isPlaying,
+                                currentPosition = currentPosition,
+                                duration = duration,
+                                repeatMode = repeatMode,
+                                isShuffle = isShuffle,
+                                sleepTimerRemainingSec = sleepTimerRemaining,
+                                designStyle = currentDesignStyle,
+                                backgroundStyle = fullPlayerBg,
+                                showVisualizer = visualizerEnabled,
+                                onToggleVisualizer = { viewModel.setVisualizerEnabled(!visualizerEnabled) },
+                                onTogglePlay = { viewModel.togglePlayPause() },
+                                onPrevious = { viewModel.skipPrevious() },
+                                onNext = { viewModel.skipNext() },
+                                onSeekTo = { viewModel.seekTo(it) },
+                                onToggleRepeat = { viewModel.toggleRepeat() },
+                                onToggleShuffle = { viewModel.toggleShuffle() },
+                                onToggleFavorite = { viewModel.toggleFavorite(it) },
+                                onOpenQueue = { showQueueSheet = true },
+                                onOpenLyrics = { viewModel.setLyricsOpen(true) },
+                                onOpenEqualizer = { viewModel.setEqualizerOpen(true) },
+
+                                onOpenSleepTimer = { viewModel.setSleepTimerDialogOpen(true) },
+                                onStyleChange = { viewModel.setDesignStyle(it) },
+                                onCollapse = { viewModel.setPlayerExpanded(false) }
+                            )
+                        }
 
                     // 5. Equalizer Overlay Screen
                     AnimatedVisibility(
@@ -478,6 +562,14 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
+
+                    if (isOutputRoutePickerOpen) {
+                        OutputRouteBottomSheet(
+                            routes = availableRoutes,
+                            onRouteSelected = { viewModel.selectRoute(it) },
+                            onDismiss = { viewModel.setOutputRoutePickerOpen(false) }
+                        )
+                    }
                 }
             }
         }
@@ -510,3 +602,5 @@ fun getStorageVolumes(context: android.content.Context): List<StorageInfo> {
     }
     return volumes
 }
+
+

@@ -16,10 +16,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import dev.abstra.pro.data.model.PlayerDesignStyle
+import dev.abstra.pro.ui.viewmodel.FullPlayerBackground
 import dev.abstra.pro.ui.theme.AppTheme
 import dev.abstra.pro.ui.theme.LocalAbstraColors
 
@@ -29,6 +34,14 @@ fun SettingsScreen(
     onThemeChange: (AppTheme) -> Unit,
     currentDesignStyle: PlayerDesignStyle,
     onDesignStyleChange: (PlayerDesignStyle) -> Unit,
+    visualizerEnabled: Boolean,
+    onVisualizerToggle: (Boolean) -> Unit,
+    fullPlayerBg: FullPlayerBackground,
+    onFullPlayerBgChange: (FullPlayerBackground) -> Unit,
+    showTabBar: Boolean,
+    onShowTabBarToggle: (Boolean) -> Unit,
+    appName: String,
+    onAppNameChange: (String) -> Unit,
     crossfadeSeconds: Int,
     onCrossfadeChange: (Int) -> Unit,
     gaplessEnabled: Boolean,
@@ -44,11 +57,17 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val colors = LocalAbstraColors.current
+    val context = LocalContext.current
+
+    val focusManager = LocalFocusManager.current
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(colors.bgBackground)
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = { focusManager.clearFocus() })
+            }
     ) {
         // ─────────────────────────────────────────────────────────────
         // 1. TOP HEADER
@@ -76,11 +95,186 @@ fun SettingsScreen(
             }
         }
 
-        LazyColumn(
+        androidx.compose.foundation.lazy.LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // ─────────────────────────────────────────────────────────────
+            // 3. AUDIO ENGINE & PLAYBACK
+            // ─────────────────────────────────────────────────────────────
+            item {
+                SettingsSection(title = "Audio Engine & Playback") {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        // Gapless Playback Toggle
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Gapless Playback", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
+                                Text("Eliminate silence gaps between consecutive tracks", fontSize = 12.sp, color = colors.textSecondary)
+                            }
+                            Switch(
+                                checked = gaplessEnabled,
+                                onCheckedChange = onGaplessToggle,
+                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = colors.primary)
+                            )
+                        }
+
+                        Divider(color = colors.border.copy(alpha = 0.5f))
+
+                        // Crossfade Duration
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Crossfade Duration", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
+                                Text("${crossfadeSeconds}s", fontWeight = FontWeight.Bold, color = colors.primary, fontSize = 13.sp)
+                            }
+                            Slider(
+                                value = crossfadeSeconds.toFloat(),
+                                onValueChange = { onCrossfadeChange(it.toInt()) },
+                                valueRange = 0f..10f,
+                                steps = 9,
+                                colors = SliderDefaults.colors(thumbColor = colors.primary, activeTrackColor = colors.primary)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ─────────────────────────────────────────────────────────────
+            // ─────────────────────────────────────────────────────────────
+            // 4. SONG RULES
+            // ─────────────────────────────────────────────────────────────
+            item {
+                SettingsSection(title = "Song Rules") {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        // Min duration filter
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Filter Short Audio", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
+                                    Text("Ignore audio shorter than threshold (voice notes, UI alerts)", fontSize = 12.sp, color = colors.textSecondary)
+                                }
+                                Text("${minDurationFilterSec}s", fontWeight = FontWeight.Bold, color = colors.primary, fontSize = 14.sp)
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                listOf(10, 30, 60).forEach { sec ->
+                                    val isSelected = minDurationFilterSec == sec
+                                    FilledTonalButton(
+                                        onClick = { onMinDurationChange(sec) },
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = if (isSelected) colors.primary else colors.bgSurface,
+                                            contentColor = if (isSelected) Color.White else colors.textPrimary
+                                        ),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("≥ ${sec}s", fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                        }
+
+                        Divider(color = colors.border.copy(alpha = 0.5f))
+
+                        // Physical Tag Writing (Jaudiotagger)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Write Tags to Audio Files", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
+                                Text("Embed edited tags directly into MP3 / FLAC files via Jaudiotagger", fontSize = 12.sp, color = colors.textSecondary)
+                            }
+                            Switch(
+                                checked = writePhysicalTags,
+                                onCheckedChange = onWritePhysicalTagsToggle,
+                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = colors.primary)
+                            )
+                        }
+
+                        Divider(color = colors.border.copy(alpha = 0.5f))
+
+                        // Rescan MediaStore
+                        OutlinedButton(
+                            onClick = {
+                                android.widget.Toast.makeText(context, "Rescanning storage...", android.widget.Toast.LENGTH_SHORT).show()
+                                onRescanLibrary()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Rescan Device Storage Now", color = colors.primary)
+                        }
+
+
+                    }
+                }
+            }
+
+            // ─────────────────────────────────────────────────────────────
+            // 5. SAF BACKUP & RESTORE (Lune / Abstra JSON)
+            // ─────────────────────────────────────────────────────────────
+            item {
+                SettingsSection(title = "Playlists & SAF Backup") {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            text = "Export and restore your playlists and custom tags to offline JSON files without cloud sync. (Experimental - Will be available in future versions)",
+                            fontSize = 12.sp,
+                            color = colors.textSecondary
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = { },
+                                enabled = false,
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = colors.primary,
+                                    contentColor = Color.White
+                                ),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.FileUpload, null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Export JSON", fontSize = 12.sp)
+                            }
+
+                            FilledTonalButton(
+                                onClick = { },
+                                enabled = false,
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = colors.bgSurface,
+                                    contentColor = colors.textPrimary
+                                ),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.FileDownload, null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Import JSON", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+
+
             // ─────────────────────────────────────────────────────────────
             // 2. APPEARANCE & THEMES (Abstra Pastel & AMOLED)
             // ─────────────────────────────────────────────────────────────
@@ -178,235 +372,113 @@ fun SettingsScreen(
                                 }
                             }
                         }
-                    }
-                }
-            }
 
-            // ─────────────────────────────────────────────────────────────
-            // 3. AUDIO ENGINE & PLAYBACK
-            // ─────────────────────────────────────────────────────────────
-            item {
-                SettingsSection(title = "Audio Engine & Playback") {
-                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        // Gapless Playback Toggle
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Visualizer Toggle
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Gapless Playback", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
-                                Text("Eliminate silence gaps between consecutive tracks", fontSize = 12.sp, color = colors.textSecondary)
+                                Text("Visualizer", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
+                                Text("Reactive bars in the full player", fontSize = 12.sp, color = colors.textSecondary)
                             }
                             Switch(
-                                checked = gaplessEnabled,
-                                onCheckedChange = onGaplessToggle,
-                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = colors.primary)
+                                checked = visualizerEnabled,
+                                onCheckedChange = onVisualizerToggle,
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = colors.primary
+                                )
                             )
                         }
 
-                        Divider(color = colors.border.copy(alpha = 0.5f))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                        // Crossfade Duration
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Crossfade Duration", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
-                                Text("${crossfadeSeconds}s", fontWeight = FontWeight.Bold, color = colors.primary, fontSize = 13.sp)
-                            }
-                            Slider(
-                                value = crossfadeSeconds.toFloat(),
-                                onValueChange = { onCrossfadeChange(it.toInt()) },
-                                valueRange = 0f..10f,
-                                steps = 9,
-                                colors = SliderDefaults.colors(thumbColor = colors.primary, activeTrackColor = colors.primary)
-                            )
-                        }
-                    }
-                }
-            }
-
-            // ─────────────────────────────────────────────────────────────
-            // 4. LUNE SCANNER RULES & LIBRARY
-            // ─────────────────────────────────────────────────────────────
-            item {
-                SettingsSection(title = "Lune Library & Folder Rules") {
-                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        // Min duration filter
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("Filter Short Audio", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
-                                    Text("Ignore audio shorter than threshold (voice notes, UI alerts)", fontSize = 12.sp, color = colors.textSecondary)
-                                }
-                                Text("${minDurationFilterSec}s", fontWeight = FontWeight.Bold, color = colors.primary, fontSize = 14.sp)
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                listOf(10, 30, 60).forEach { sec ->
-                                    val isSelected = minDurationFilterSec == sec
-                                    FilledTonalButton(
-                                        onClick = { onMinDurationChange(sec) },
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.filledTonalButtonColors(
-                                            containerColor = if (isSelected) colors.primary else colors.bgSurface,
-                                            contentColor = if (isSelected) Color.White else colors.textPrimary
-                                        ),
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text("≥ ${sec}s", fontSize = 12.sp)
+                        // Full Player Background Style
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FullPlayerBackground.values().forEach { bg ->
+                                val isSelected = fullPlayerBg == bg
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (isSelected) colors.primary else colors.bgSurface,
+                                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
+                                        .clickable { onFullPlayerBgChange(bg) }
+                                ) {
+                                    Box(modifier = Modifier.padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = when (bg) {
+                                                FullPlayerBackground.GRADIENT -> "Gradient"
+                                                FullPlayerBackground.SOLID -> "Solid"
+                                            },
+                                            color = if (isSelected) Color.White else colors.textPrimary,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            fontSize = 13.sp
+                                        )
                                     }
                                 }
                             }
                         }
 
-                        Divider(color = colors.border.copy(alpha = 0.5f))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                        // Physical Tag Writing (Jaudiotagger)
+                        // Header Settings
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Write Tags to Audio Files", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
-                                Text("Embed edited tags directly into MP3 / FLAC files via Jaudiotagger", fontSize = 12.sp, color = colors.textSecondary)
+                                Text("Show Tab Navigation", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
+                                Text("Use pill tabs at the top. Turn off to show a compact header.", fontSize = 12.sp, color = colors.textSecondary)
                             }
                             Switch(
-                                checked = writePhysicalTags,
-                                onCheckedChange = onWritePhysicalTagsToggle,
-                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = colors.primary)
+                                checked = showTabBar,
+                                onCheckedChange = onShowTabBarToggle,
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = colors.primary
+                                )
                             )
                         }
 
-                        Divider(color = colors.border.copy(alpha = 0.5f))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                        // Rescan MediaStore
-                        OutlinedButton(
-                            onClick = onRescanLibrary,
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Rescan Device Storage Now", color = colors.primary)
-                        }
-
-                        Divider(color = colors.border.copy(alpha = 0.5f))
-
-                        // Music Folder selection
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("Music Library Folder", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
-                                    Text("Restrict scanning to a specific folder", fontSize = 12.sp, color = colors.textSecondary)
-                                }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("App Header Name", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
+                                Text("Shown when tab navigation is hidden.", fontSize = 12.sp, color = colors.textSecondary)
                             }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            FilledTonalButton(
-                                onClick = { onSelectFolder() },
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = colors.bgSurface,
-                                    contentColor = colors.textPrimary
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Select Folder", fontSize = 12.sp)
-                            }
+                            OutlinedTextField(
+                                value = appName,
+                                onValueChange = onAppNameChange,
+                                singleLine = true,
+                                modifier = Modifier.width(140.dp)
+                            )
                         }
                     }
                 }
             }
-
-            // ─────────────────────────────────────────────────────────────
-            // 5. SAF BACKUP & RESTORE (Lune / Abstra JSON)
-            // ─────────────────────────────────────────────────────────────
             item {
-                SettingsSection(title = "Playlists & SAF Backup") {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(
-                            text = "Export and restore your playlists and custom tags to offline JSON files without cloud sync.",
-                            fontSize = 12.sp,
-                            color = colors.textSecondary
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Button(
-                                onClick = onExportBackup,
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = colors.primary,
-                                    contentColor = Color.White
-                                ),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.FileUpload, null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Export JSON", fontSize = 12.sp)
-                            }
-
-                            FilledTonalButton(
-                                onClick = onImportBackup,
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = colors.bgSurface,
-                                    contentColor = colors.textPrimary
-                                ),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.FileDownload, null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Import JSON", fontSize = 12.sp)
-                            }
-                        }
-                    }
+                Spacer(modifier = Modifier.height(24.dp))
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Made with ❤️ for 💕",
+                        fontSize = 13.sp,
+                        color = colors.textSecondary,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 0.5.sp
+                    )
                 }
-            }
-
-            // ─────────────────────────────────────────────────────────────
-            // 6. ABOUT & PRIVACY
-            // ─────────────────────────────────────────────────────────────
-            item {
-                SettingsSection(title = "Build with ❤️ by DotHP") {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Version", fontSize = 13.sp, color = colors.textSecondary)
-                            Text("1.0.0 (GPLv3 Open Source)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.primary)
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Network Access", fontSize = 13.sp, color = colors.textSecondary)
-                            Text("None (100% Offline & Private)", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textPrimary)
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Audio Engine", fontSize = 13.sp, color = colors.textSecondary)
-                            Text("Media3 + Hardware Multi-Band DSP", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.textPrimary)
-                        }
-                    }
-                }
-            }
-
-            item {
                 Spacer(modifier = Modifier.height(80.dp))
             }
         }

@@ -164,10 +164,15 @@ class MusicRepository(
                 val parent = java.io.File(entity.filePath).parent ?: return@filter true
                 parent !in excluded
             }
+            val currentSongs = libraryDao.getAllSongs().first()
+            val newIds = filtered.map { it.id }.toSet()
+            val toDelete = currentSongs.filter { it.id !in newIds }
+            toDelete.forEach { libraryDao.deleteSong(it.id) }
+            
             if (filtered.isNotEmpty()) {
                 libraryDao.insertSongs(filtered)
             }
-            Log.i("MusicRepository", "Scanned ${foundSongs.size} songs from storage")
+            Log.i("MusicRepository", "Scanned ${foundSongs.size} songs from storage. Deleted ${toDelete.size} stale tracks.")
         } catch (e: Exception) {
             Log.e("MusicRepository", "Failed to scan local media", e)
         } finally {
