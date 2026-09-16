@@ -28,6 +28,8 @@ import dev.abstra.pro.ui.theme.AbstraTheme
 import dev.abstra.pro.ui.theme.LocalAbstraColors
 import dev.abstra.pro.ui.components.MainNavigationTab
 import dev.abstra.pro.ui.viewmodel.MusicViewModel
+import kotlinx.coroutines.launch
+import dev.abstra.pro.ui.components.AddToPlaylistDialog
 
 class MainActivity : ComponentActivity() {
 
@@ -46,6 +48,7 @@ class MainActivity : ComponentActivity() {
             val isSleepTimerDialogOpen by viewModel.isSleepTimerDialogOpen.collectAsState()
             val isCreatePlaylistDialogOpen by viewModel.isCreatePlaylistDialogOpen.collectAsState()
             val editingSong by viewModel.editingMetadataSong.collectAsState()
+            val playlistPickerForSong by viewModel.playlistPickerForSong.collectAsState()
             
             var showQueueSheet by remember { mutableStateOf(false) }
 
@@ -70,6 +73,7 @@ class MainActivity : ComponentActivity() {
             val aiMixes by viewModel.aiMixes.collectAsState()
             val lyricsLines by viewModel.currentLyrics.collectAsState()
             val lyricsOffsetMs by viewModel.lyricsTimeOffsetMs.collectAsState()
+            val lifetimeMs by viewModel.totalLifetimePlaytime.collectAsState()
 
             // Hoisted List States
             val songsListState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -140,6 +144,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            val deleteSongLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.StartIntentSenderForResult()
+            ) { result ->
+                viewModel.onSongDeleteConfirmed(result.resultCode == android.app.Activity.RESULT_OK)
+            }
+
             LaunchedEffect(Unit) {
                 if (!hasAudioPermission) {
                     val reqs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -162,11 +172,27 @@ class MainActivity : ComponentActivity() {
                 ) {
                     // Main Content Scaffold
                     Column(modifier = Modifier.fillMaxSize()) {
+                        val coroutineScope = rememberCoroutineScope()
+                        val pagerState = androidx.compose.foundation.pager.rememberPagerState(
+                            initialPage = currentTab.ordinal,
+                            pageCount = { MainNavigationTab.values().size }
+                        )
+
+                        // Single source of truth: pagerState drives the tab highlight.
+                        LaunchedEffect(pagerState.currentPage) {
+                            val tab = MainNavigationTab.values()[pagerState.currentPage]
+                            if (currentTab != tab) {
+                                viewModel.setTab(tab)
+                            }
+                        }
+
                         // 1. Top Segmented Pill Tabs
                         TopSegmentedTabs(
-                            selectedTab = currentTab,
+                            selectedTab = MainNavigationTab.values()[pagerState.currentPage],
                             onTabSelected = { tab ->
-                                viewModel.setTab(tab)
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(tab.ordinal)
+                                }
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -174,32 +200,14 @@ class MainActivity : ComponentActivity() {
                         )
 
                         // 2. Active Screen Content
-                        val pagerState = androidx.compose.foundation.pager.rememberPagerState(
-                            initialPage = currentTab.ordinal,
-                            pageCount = { MainNavigationTab.values().size }
-                        )
-
-                        // Sync pager to tab clicks
-                        LaunchedEffect(currentTab) {
-                            if (pagerState.currentPage != currentTab.ordinal) {
-                                pagerState.animateScrollToPage(currentTab.ordinal)
-                            }
-                        }
-
-                        // Sync tab state to pager swipes
-                        LaunchedEffect(pagerState.currentPage) {
-                            if (pagerState.currentPage != currentTab.ordinal) {
-                                viewModel.setTab(MainNavigationTab.values()[pagerState.currentPage])
-                            }
-                        }
-
                         androidx.compose.foundation.pager.HorizontalPager(
                             state = pagerState,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()
                         ) { page ->
-                            when (MainNavigationTab.values()[page]) {
+                            key(MainNavigationTab.values()[page]) {
+                                when (MainNavigationTab.values()[page]) {
                                 MainNavigationTab.HOME -> {
                                     HomeScreen(
                                         currentSong = currentSong,
@@ -209,6 +217,9 @@ class MainActivity : ComponentActivity() {
                                         aiMixes = aiMixes,
                                         topArtists = emptyList(),
                                         topGenres = emptyList(),
+                                        totalSongs = allSongs.size,
+                                        favoriteCount = allSongs.count { it.isFavorite },
+                                        lifetimeListeningMs = lifetimeMs,
                                         onSongClick = { viewModel.playSong(it) },
                                         onPlaylistClick = { pl ->
                                             viewModel.setTab(MainNavigationTab.PLAYLISTS)
@@ -231,9 +242,16 @@ class MainActivity : ComponentActivity() {
                                         onToggleFavorite = { viewModel.toggleFavorite(it) },
                                         onAddToQueue = { viewModel.addToQueue(it) },
                                         onPlayNext = { viewModel.playNext(it) },
-                                        onAddToPlaylist = { /* add to pl */ },
+                                        onAddToPlaylist = { viewModel.openPlaylistPicker(it) },
                                         onEditMetadata = { viewModel.setEditingMetadataSong(it) },
-                                        onDeleteSong = { /* delete */ },
+                                        onDeleteSong = { song -> 
+                                            coroutineScope.launch {
+                                                val sender = viewModel.requestDeleteSong(song)
+                                                sender?.let { s -> 
+                                                    deleteSongLauncher.launch(androidx.activity.result.IntentSenderRequest.Builder(s).build()) 
+                                                }
+                                            }
+                                        },
                                         onRescanLibrary = { viewModel.rescanLibrary() },
                                         listState = songsListState
                                     )
@@ -257,29 +275,33 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                                 MainNavigationTab.FOLDERS -> {
-                                    val folders = remember(allSongs) {
-                                        allSongs.groupBy { java.io.File(it.filePath).parent ?: "Unknown" }.map { (path, songs) ->
-                                            Folder(
-                                                name = java.io.File(path).name,
-                                                path = path,
-                                                songCount = songs.size,
-                                                songs = songs
-                                            )
-                                        }
+                                    val excluded by viewModel.excludedFolderPaths.collectAsState()
+                                    val folders = remember(allSongs, excluded) {
+                                        val excludedSet = excluded
+                                        allSongs.asSequence()
+                                            .mapNotNull { java.io.File(it.filePath).parent }
+                                            .filter { it !in excludedSet }
+                                            .distinct()
+                                            .map { path ->
+                                                val songs = allSongs.filter { java.io.File(it.filePath).parent == path }
+                                                Folder(java.io.File(path).name, path, songs.size, songs)
+                                            }
+                                            .sortedBy { it.name }
+                                            .toList()
                                     }
-                                    val defaultStorage = listOf(
-                                        StorageInfo("Internal Storage", "/storage/emulated/0", false, 0, 0)
-                                    )
+                                    
+                                    val context = androidx.compose.ui.platform.LocalContext.current
+                                    val realVolumes = remember { getStorageVolumes(context) }
 
                                     FoldersScreen(
                                         folders = folders,
-                                        storageVolumes = defaultStorage,
+                                        storageVolumes = realVolumes,
                                         currentSong = currentSong,
                                         isPlaying = isPlaying,
                                         onSongClick = { viewModel.playSong(it) },
                                         onPlayFolder = { f -> viewModel.playQueue(f.songs) },
                                         onShuffleFolder = { f -> viewModel.shuffleQueue(f.songs) },
-                                        onExcludeFolder = { /* exclude */ },
+                                        onExcludeFolder = { folder -> viewModel.excludeFolder(folder.path) },
                                         onRescanLibrary = { viewModel.rescanLibrary() }
                                     )
                                 }
@@ -302,6 +324,7 @@ class MainActivity : ComponentActivity() {
                                         onRescanLibrary = { viewModel.rescanLibrary() },
                                         onSelectFolder = { folderPickerLauncher.launch(Uri.EMPTY) }
                                     )
+                                }
                                 }
                             }
                         }
@@ -389,7 +412,10 @@ class MainActivity : ComponentActivity() {
                             timeOffsetMs = lyricsOffsetMs,
                             onOffsetChange = { viewModel.setLyricsOffset(it) },
                             onLineClick = { pos -> viewModel.seekTo(pos) },
-                            onSelectLrcFile = { lrcPickerLauncher.launch(arrayOf("*/*")) },
+                            onSelectLrcFile = { 
+                                val lrcMime = arrayOf("text/plain", "application/octet-stream", "*/*")
+                                lrcPickerLauncher.launch(lrcMime) 
+                            },
                             onClose = { viewModel.setLyricsOpen(false) }
                         )
                     }
@@ -417,17 +443,35 @@ class MainActivity : ComponentActivity() {
                     }
 
                     if (showQueueSheet) {
-                        val q by viewModel.queue.collectAsState()
-                        val qIdx by viewModel.currentIndex.collectAsState()
-                        QueueBottomSheet(
-                            queue = q,
-                            currentIndex = qIdx,
-                            onDismiss = { showQueueSheet = false },
-                            onReorder = { from, to -> viewModel.moveQueueItem(from, to) },
-                            onRemove = { song -> viewModel.removeQueueItem(song) },
-                            onSongClick = { song -> 
-                                viewModel.playSong(song)
-                                showQueueSheet = false
+                        key(showQueueSheet) {
+                            val q by viewModel.queue.collectAsState()
+                            val qIdx by viewModel.currentIndex.collectAsState()
+                            QueueBottomSheet(
+                                queue = q,
+                                currentIndex = qIdx,
+                                onDismiss = { showQueueSheet = false },
+                                onReorder = { from, to -> viewModel.moveQueueItem(from, to) },
+                                onRemove = { song -> viewModel.removeQueueItem(song) },
+                                onClearQueue = { viewModel.clearQueue() },
+                                onSongClick = { song -> 
+                                    viewModel.playSong(song)
+                                    showQueueSheet = false
+                                }
+                            )
+                        }
+                    }
+
+                    playlistPickerForSong?.let { song ->
+                        AddToPlaylistDialog(
+                            playlists = playlists,
+                            onDismiss = { viewModel.closePlaylistPicker() },
+                            onCreateNew = { name ->
+                                viewModel.createPlaylist(name)
+                                viewModel.closePlaylistPicker()
+                            },
+                            onSelectPlaylist = { pl ->
+                                viewModel.addSongToPlaylist(pl.id, song)
+                                viewModel.closePlaylistPicker()
                             }
                         )
                     }
@@ -435,4 +479,31 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
+
+fun getStorageVolumes(context: android.content.Context): List<StorageInfo> {
+    val volumes = mutableListOf<StorageInfo>()
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        val storageManager = context.getSystemService(android.content.Context.STORAGE_SERVICE) as android.os.storage.StorageManager
+        for (volume in storageManager.storageVolumes) {
+            val dir = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                volume.directory
+            } else {
+                @Suppress("DEPRECATION")
+                if (volume.isPrimary) {
+                    android.os.Environment.getExternalStorageDirectory()
+                } else {
+                    try {
+                        val method = volume.javaClass.getMethod("getPath")
+                        java.io.File(method.invoke(volume) as String)
+                    } catch (_: Exception) { null }
+                }
+            }
+            dir?.let {
+                val name = volume.getDescription(context)
+                volumes.add(StorageInfo(name, it.absolutePath, volume.isPrimary, 0, 0))
+            }
+        }
+    }
+    return volumes
 }

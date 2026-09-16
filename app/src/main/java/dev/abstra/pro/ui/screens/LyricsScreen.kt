@@ -295,7 +295,6 @@ fun LyricsScreen(
                             manualScrollUntilMs = System.currentTimeMillis() + 4000
                         }
                     },
-                modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 40.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {

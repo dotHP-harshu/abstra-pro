@@ -171,6 +171,7 @@ fun SettingsScreen(
                                                 PlayerDesignStyle.POLAROID -> "Polaroid"
                                                 PlayerDesignStyle.CASSETTE -> "Cassette"
                                                 PlayerDesignStyle.MINIMAL_ART -> "Minimal"
+                                                PlayerDesignStyle.HEART_WINDOW -> "Heart"
                                             },
                                             fontSize = 11.sp,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,

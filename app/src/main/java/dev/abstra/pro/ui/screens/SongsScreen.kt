@@ -63,30 +63,32 @@ fun SongsScreen(
     var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
 
     // Filter & Sort
-    val filteredSongs = remember(songs, searchQuery, sortOption) {
-        val filtered = if (searchQuery.isBlank()) {
-            songs
-        } else {
+    val filteredSongs by remember(songs) {
+        derivedStateOf {
             val q = searchQuery.trim().lowercase()
-            songs.filter {
-                it.title.lowercase().contains(q) ||
-                it.artist.lowercase().contains(q) ||
-                it.album.lowercase().contains(q)
+            val filtered = if (q.isBlank()) {
+                songs
+            } else {
+                songs.filter {
+                    it.title.lowercase().contains(q) ||
+                    it.artist.lowercase().contains(q) ||
+                    it.album.lowercase().contains(q)
+                }
             }
-        }
 
-        when (sortOption) {
-            SongSortOption.TITLE_ASC -> filtered.sortedBy { it.title.lowercase() }
-            SongSortOption.TITLE_DESC -> filtered.sortedByDescending { it.title.lowercase() }
-            SongSortOption.ARTIST_ASC -> filtered.sortedBy { it.artist.lowercase() }
-            SongSortOption.ARTIST_DESC -> filtered.sortedByDescending { it.artist.lowercase() }
-            SongSortOption.ALBUM_ASC -> filtered.sortedBy { it.album.lowercase() }
-            SongSortOption.ALBUM_DESC -> filtered.sortedByDescending { it.album.lowercase() }
-            SongSortOption.DATE_ADDED_DESC -> filtered.sortedByDescending { it.dateAdded }
-            SongSortOption.DATE_ADDED_ASC -> filtered.sortedBy { it.dateAdded }
-            SongSortOption.DURATION_DESC -> filtered.sortedByDescending { it.durationMs }
-            SongSortOption.DURATION_ASC -> filtered.sortedBy { it.durationMs }
-            SongSortOption.RECENTLY_ADDED -> filtered.sortedByDescending { it.dateAdded }
+            when (sortOption) {
+                SongSortOption.TITLE_ASC -> filtered.sortedBy { it.title.lowercase() }
+                SongSortOption.TITLE_DESC -> filtered.sortedByDescending { it.title.lowercase() }
+                SongSortOption.ARTIST_ASC -> filtered.sortedBy { it.artist.lowercase() }
+                SongSortOption.ARTIST_DESC -> filtered.sortedByDescending { it.artist.lowercase() }
+                SongSortOption.ALBUM_ASC -> filtered.sortedBy { it.album.lowercase() }
+                SongSortOption.ALBUM_DESC -> filtered.sortedByDescending { it.album.lowercase() }
+                SongSortOption.DATE_ADDED_DESC -> filtered.sortedByDescending { it.dateAdded }
+                SongSortOption.DATE_ADDED_ASC -> filtered.sortedBy { it.dateAdded }
+                SongSortOption.DURATION_DESC -> filtered.sortedByDescending { it.durationMs }
+                SongSortOption.DURATION_ASC -> filtered.sortedBy { it.durationMs }
+                SongSortOption.RECENTLY_ADDED -> filtered.sortedByDescending { it.dateAdded }
+            }
         }
     }
 
@@ -125,7 +127,7 @@ fun SongsScreen(
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
-                    BasicTextField(
+                    OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         modifier = Modifier.weight(1f),
@@ -135,16 +137,18 @@ fun SongsScreen(
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium
                         ),
-                        cursorBrush = SolidColor(colors.primary),
-                        decorationBox = { innerTextField ->
-                            if (searchQuery.isEmpty()) {
-                                Text(
-                                    text = "Search in ${songs.size} tracks...",
-                                    color = colors.textMuted,
-                                    fontSize = 14.sp
-                                )
-                            }
-                            innerTextField()
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                        ),
+                        placeholder = {
+                            Text(
+                                text = "Search in ${songs.size} tracks...",
+                                color = colors.textMuted,
+                                fontSize = 14.sp
+                            )
                         }
                     )
                     if (searchQuery.isNotEmpty()) {

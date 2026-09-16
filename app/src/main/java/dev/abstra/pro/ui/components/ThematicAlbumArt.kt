@@ -42,8 +42,8 @@ data class PaletteColors(
 )
 
 object EmbeddedArtCache {
-    private const val MAX_ENTRIES = 64
-    val decodeSemaphore = Semaphore(3)
+    private const val MAX_ENTRIES = 256
+    val decodeSemaphore = Semaphore(1)
     private val cache = object : LinkedHashMap<String, ImageBitmap>(MAX_ENTRIES, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ImageBitmap>?): Boolean =
             size > MAX_ENTRIES
@@ -209,6 +209,87 @@ fun ThematicAlbumArt(
                         )
                     }
                 } else {
+                    Icon(
+                        Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.85f),
+                        modifier = Modifier.size((sizeDp * 0.45f).coerceIn(14.dp, 36.dp))
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ThumbnailOnly(
+    trackId: String,
+    title: String,
+    artist: String,
+    uriString: String,
+    modifier: Modifier = Modifier,
+    cornerRadius: Dp = 12.dp
+) {
+    val colors = LocalAbstraColors.current
+    val cached = remember(uriString) { EmbeddedArtCache.get(if (uriString.isNotBlank() && !trackId.startsWith("demo_")) uriString else "") }
+
+    Box(
+        modifier = modifier.clip(RoundedCornerShape(cornerRadius)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (cached != null) {
+            Image(
+                bitmap = cached,
+                contentDescription = "$title album art",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            val seed = abs(trackId.hashCode())
+            val c1 = remember(trackId) {
+                when (seed % 6) {
+                    0 -> Color(0xFFF06FA0)
+                    1 -> Color(0xFFFD9692)
+                    2 -> Color(0xFFF9A1B2)
+                    3 -> Color(0xFF8D517B)
+                    4 -> Color(0xFFB9706A)
+                    else -> Color(0xFFE5819E)
+                }
+            }
+            val c2 = remember(trackId) {
+                when ((seed / 6) % 6) {
+                    0 -> Color(0xFFFFF0F5)
+                    1 -> Color(0xFFFDECE8)
+                    2 -> Color(0xFFFEDFDD)
+                    3 -> Color(0xFFCCB0E9)
+                    4 -> Color(0xFFFBDDC6)
+                    else -> Color(0xFFD7BFF3)
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Brush.linearGradient(listOf(c1, c2, colors.bgSurface))),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val w = size.width
+                    val h = size.height
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.22f),
+                        radius = w * 0.45f,
+                        center = Offset(w * 0.8f, h * 0.2f)
+                    )
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.15f),
+                        radius = w * 0.35f,
+                        center = Offset(w * 0.2f, h * 0.8f)
+                    )
+                }
+                
+                BoxWithConstraints(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    val sizeDp = minOf(maxWidth, maxHeight)
                     Icon(
                         Icons.Default.MusicNote,
                         contentDescription = null,

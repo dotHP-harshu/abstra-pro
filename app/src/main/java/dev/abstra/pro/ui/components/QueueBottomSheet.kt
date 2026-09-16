@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.*
 import dev.abstra.pro.data.model.Song
 import dev.abstra.pro.ui.theme.LocalAbstraColors
 
@@ -35,6 +36,25 @@ fun QueueBottomSheet(
         canDragOver = { it != currentIndex },   // never drag over the currently playing track
         onMove = { from, to -> onReorder(from, to) }
     )
+    
+    var showClearConfirm by remember { mutableStateOf(false) }
+
+    if (showClearConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirm = false },
+            title = { Text("Clear Queue") },
+            text = { Text("Are you sure you want to clear the upcoming queue?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onClearQueue()
+                    showClearConfirm = false
+                }) { Text("Clear") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -67,7 +87,7 @@ fun QueueBottomSheet(
                     )
                 }
                 TextButton(
-                    onClick = onClearQueue,
+                    onClick = { showClearConfirm = true },
                     enabled = queue.size > (currentIndex + 1).coerceAtLeast(0)
                 ) {
                     Icon(

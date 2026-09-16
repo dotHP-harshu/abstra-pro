@@ -12,6 +12,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.platform.testTag
 import dev.abstra.pro.ui.theme.LocalAbstraColors
 
 @Composable
@@ -284,5 +286,152 @@ fun TurntableArmIllustration(
         }
         drawPath(headshell, Color(0xFFFF85B3))
         drawPath(headshell, Color(0xFFE14E86), style = Stroke(width = 1.5f))
+    }
+}
+
+@Composable
+fun HeartIllustration(
+    modifier: Modifier = Modifier,
+    size: Dp = 20.dp,
+    color: Color = Color(0xFFFF4D7E),
+    withBorder: Boolean = false,
+    borderColor: Color = Color.White
+) {
+    Canvas(modifier = modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+        val path = Path().apply {
+            moveTo(w * 0.5f, h * 0.85f)
+            cubicTo(w * 0.1f, h * 0.55f, 0f, h * 0.25f, w * 0.25f, h * 0.12f)
+            cubicTo(w * 0.42f, h * 0.05f, w * 0.5f, h * 0.3f, w * 0.5f, h * 0.3f)
+            cubicTo(w * 0.5f, h * 0.3f, w * 0.58f, h * 0.05f, w * 0.75f, h * 0.12f)
+            cubicTo(w * 1.0f, h * 0.25f, w * 0.9f, h * 0.55f, w * 0.5f, h * 0.85f)
+            close()
+        }
+        drawPath(path, color)
+        if (withBorder) {
+            drawPath(path, borderColor, style = Stroke(width = 2.5f))
+        }
+    }
+}
+
+@Composable
+fun PaperclipIllustration(
+    modifier: Modifier = Modifier,
+    size: Dp = 36.dp,
+    color: Color = Color(0xFFC090A5)
+) {
+    Canvas(modifier = modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+        val stroke = w * 0.12f
+
+        val path = Path().apply {
+            moveTo(w * 0.32f, h * 0.85f)
+            lineTo(w * 0.32f, h * 0.25f)
+            cubicTo(w * 0.32f, h * 0.08f, w * 0.72f, h * 0.08f, w * 0.72f, h * 0.25f)
+            lineTo(w * 0.72f, h * 0.75f)
+            cubicTo(w * 0.72f, h * 0.92f, w * 0.48f, h * 0.92f, w * 0.48f, h * 0.75f)
+            lineTo(w * 0.48f, h * 0.38f)
+        }
+        drawPath(path, color, style = Stroke(width = stroke, cap = StrokeCap.Round))
+    }
+}
+
+@Composable
+fun WashiTapeSticker(
+    modifier: Modifier = Modifier,
+    width: Dp = 54.dp,
+    height: Dp = 22.dp,
+    color: Color = Color(0xBBFF99C2)
+) {
+    Canvas(modifier = modifier.size(width, height)) {
+        val w = this.size.width
+        val h = this.size.height
+
+        val path = Path().apply {
+            moveTo(0f, h * 0.2f)
+            lineTo(w * 0.08f, 0f)
+            lineTo(w * 0.92f, 0f)
+            lineTo(w, h * 0.2f)
+            lineTo(w * 0.96f, h)
+            lineTo(w * 0.04f, h)
+            close()
+        }
+        drawPath(path, color)
+        for (i in 1..4) {
+            drawLine(
+                color = Color(0x33FFFFFF),
+                start = Offset(w * (i * 0.2f), 0f),
+                end = Offset(w * (i * 0.2f + 0.1f), h),
+                strokeWidth = 2f
+            )
+        }
+    }
+}
+
+@Composable
+fun CassetteTapeSticker(
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier.size(width = 82.dp, height = 50.dp).testTag("cassette_sticker")) {
+        val w = size.width
+        val h = size.height
+
+        drawRoundRect(
+            color = Color(0xFFFFFFFF),
+            topLeft = Offset(0f, 0f),
+            size = Size(w, h),
+            cornerRadius = CornerRadius(14f, 14f)
+        )
+
+        drawRoundRect(
+            color = Color(0xFFFF85B3),
+            topLeft = Offset(3f, 3f),
+            size = Size(w - 6f, h - 6f),
+            cornerRadius = CornerRadius(10f, 10f)
+        )
+
+        drawRoundRect(
+            color = Color(0xFFFFF0F5),
+            topLeft = Offset(8f, 8f),
+            size = Size(w - 16f, h * 0.44f),
+            cornerRadius = CornerRadius(6f, 6f)
+        )
+
+        drawCircle(
+            color = Color(0xFFE14E86),
+            radius = 2.5f,
+            center = Offset(20f, 15f)
+        )
+
+        drawRoundRect(
+            color = Color(0xFF4A1528),
+            topLeft = Offset(16f, h * 0.56f),
+            size = Size(w - 32f, h * 0.32f),
+            cornerRadius = CornerRadius(5f, 5f)
+        )
+
+        drawCircle(
+            color = Color(0xFFFFFFFF),
+            radius = 6f,
+            center = Offset(26f, h * 0.72f)
+        )
+        drawCircle(
+            color = Color(0xFF4A1528),
+            radius = 3f,
+            center = Offset(26f, h * 0.72f)
+        )
+
+        drawCircle(
+            color = Color(0xFFFFFFFF),
+            radius = 6f,
+            center = Offset(w - 26f, h * 0.72f)
+        )
+        drawCircle(
+            color = Color(0xFF4A1528),
+            radius = 3f,
+            center = Offset(w - 26f, h * 0.72f)
+        )
     }
 }

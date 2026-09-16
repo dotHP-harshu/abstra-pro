@@ -8,6 +8,7 @@ import androidx.room.CoroutinesRoom;
 import androidx.room.EntityInsertionAdapter;
 import androidx.room.RoomDatabase;
 import androidx.room.RoomSQLiteQuery;
+import androidx.room.SharedSQLiteStatement;
 import androidx.room.util.CursorUtil;
 import androidx.room.util.DBUtil;
 import androidx.sqlite.db.SupportSQLiteStatement;
@@ -38,6 +39,8 @@ public final class TelemetryDao_Impl implements TelemetryDao {
   private final EntityInsertionAdapter<PlaybackTelemetryEntity> __insertionAdapterOfPlaybackTelemetryEntity;
 
   private final EntityInsertionAdapter<MarkovTransitionEntity> __insertionAdapterOfMarkovTransitionEntity;
+
+  private final SharedSQLiteStatement __preparedStmtOfDeleteTelemetry;
 
   public TelemetryDao_Impl(@NonNull final RoomDatabase __db) {
     this.__db = __db;
@@ -82,6 +85,14 @@ public final class TelemetryDao_Impl implements TelemetryDao {
         statement.bindLong(3, entity.getTransitionCount());
       }
     };
+    this.__preparedStmtOfDeleteTelemetry = new SharedSQLiteStatement(__db) {
+      @Override
+      @NonNull
+      public String createQuery() {
+        final String _query = "DELETE FROM playback_telemetry WHERE songId = ?";
+        return _query;
+      }
+    };
   }
 
   @Override
@@ -117,6 +128,31 @@ public final class TelemetryDao_Impl implements TelemetryDao {
           return Unit.INSTANCE;
         } finally {
           __db.endTransaction();
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object deleteTelemetry(final String songId, final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        final SupportSQLiteStatement _stmt = __preparedStmtOfDeleteTelemetry.acquire();
+        int _argIndex = 1;
+        _stmt.bindString(_argIndex, songId);
+        try {
+          __db.beginTransaction();
+          try {
+            _stmt.executeUpdateDelete();
+            __db.setTransactionSuccessful();
+            return Unit.INSTANCE;
+          } finally {
+            __db.endTransaction();
+          }
+        } finally {
+          __preparedStmtOfDeleteTelemetry.release(_stmt);
         }
       }
     }, $completion);

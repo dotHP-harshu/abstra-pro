@@ -12,6 +12,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -20,6 +23,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.abstra.pro.data.model.Song
 import dev.abstra.pro.ui.theme.AbstraColors
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.shape.GenericShape
 
 // ==========================================
 // 01. ROTATING CD / VINYL CENTERPIECE
@@ -296,39 +306,66 @@ fun PolaroidCenterpiece(
     colors: AbstraColors,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier
-            .fillMaxSize(0.92f)
-            .shadow(16.dp, RoundedCornerShape(16.dp), spotColor = colors.primary.copy(alpha = 0.35f)),
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White
+    Box(
+        modifier = modifier.fillMaxSize(0.92f),
+        contentAlignment = Alignment.Center
     ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .shadow(16.dp, RoundedCornerShape(16.dp), spotColor = colors.primary.copy(alpha = 0.35f)),
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White
         ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
+            Column(
+                modifier = Modifier.padding(14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                ThematicAlbumArt(
-                    trackId = song?.id ?: "demo",
-                    title = song?.title ?: "",
-                    artist = song?.artist ?: "",
-                    uriString = song?.uriString ?: "",
-                    modifier = Modifier.fillMaxSize(),
-                    cornerRadius = 8.dp
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                ) {
+                    ThematicAlbumArt(
+                        trackId = song?.id ?: "demo",
+                        title = song?.title ?: "",
+                        artist = song?.artist ?: "",
+                        uriString = song?.uriString ?: "",
+                        modifier = Modifier.fillMaxSize(),
+                        cornerRadius = 8.dp
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "♥ ${song?.title?.take(16) ?: "daydreams"}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colors.textHeading
                 )
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "♥ ${song?.title?.take(16) ?: "daydreams"}",
-                style = MaterialTheme.typography.titleMedium,
-                color = colors.textHeading
-            )
         }
+
+        PaperclipIllustration(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .offset(x = 6.dp, y = (-4).dp)
+                .rotate(-15f)
+        )
+
+        FloatingHeartBadge(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 8.dp, y = 2.dp),
+            size = 32.dp,
+            fillColor = Color(0xFFFF85B3)
+        )
+
+        WashiTapeSticker(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = 10.dp, y = 4.dp)
+                .rotate(-12f)
+        )
     }
 }
 
@@ -492,6 +529,114 @@ fun TapeStickerBadge(modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.labelSmall,
             color = Color(0xFFE14E86),
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+        )
+    }
+}
+
+@Composable
+fun HeartWindowCenterpiece(
+    song: Song?,
+    isPlaying: Boolean,
+    colors: AbstraColors,
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "heartPulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.98f,
+        targetValue = if (isPlaying) 1.02f else 0.98f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
+
+    val heartShape = remember {
+        GenericShape { size, _ ->
+            val w = size.width
+            val h = size.height
+            moveTo(w * 0.5f, h * 0.88f)
+            cubicTo(w * 0.05f, h * 0.55f, 0f, h * 0.22f, w * 0.25f, h * 0.08f)
+            cubicTo(w * 0.42f, h * 0.02f, w * 0.5f, h * 0.28f, w * 0.5f, h * 0.28f)
+            cubicTo(w * 0.5f, h * 0.28f, w * 0.58f, h * 0.02f, w * 0.75f, h * 0.08f)
+            cubicTo(w * 1.0f, h * 0.22f, w * 0.95f, h * 0.55f, w * 0.5f, h * 0.88f)
+            close()
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .scale(pulseScale)
+            .testTag("preset_heart_window"),
+        contentAlignment = Alignment.Center
+    ) {
+        SparkleStarIcon(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .offset(x = 12.dp, y = 14.dp),
+            size = 18.dp,
+            color = Color(0xFFFF99C2)
+        )
+        SparkleStarIcon(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = (-12).dp, y = 18.dp),
+            size = 16.dp,
+            color = Color(0xFFFF99C2)
+        )
+        SparkleStarIcon(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .offset(x = 18.dp, y = (-24).dp),
+            size = 14.dp,
+            color = Color(0xFFFFD1E3)
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize(0.92f)
+                .aspectRatio(1f)
+                .shadow(16.dp, shape = heartShape, spotColor = colors.primary.copy(alpha = 0.5f))
+            	.clip(heartShape)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFFFFEBF2),
+                            Color(0xFFFFCBE0),
+                            Color(0xFFFF85B3)
+                        )
+                    )
+                )
+                .padding(14.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(heartShape)
+                    .border(2.5.dp, Color.White, heartShape),
+                contentAlignment = Alignment.Center
+            ) {
+                ThematicAlbumArt(
+                    trackId = song?.id ?: "demo",
+                    title = song?.title ?: "daydreams",
+                    artist = song?.artist ?: "lovelyy",
+                    uriString = song?.uriString ?: "",
+                    modifier = Modifier.fillMaxSize(),
+                    cornerRadius = 0.dp,
+                    showDetailsOnLarge = false
+                )
+            }
+        }
+
+        FloatingHeartBadge(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = (-6).dp, y = (-12).dp),
+            size = 38.dp,
+            fillColor = Color(0xFFFF4D7E),
+            borderColor = Color.White
         )
     }
 }

@@ -49,6 +49,8 @@ public final class LibraryDao_Impl implements LibraryDao {
 
   private final SharedSQLiteStatement __preparedStmtOfDeleteOverride;
 
+  private final SharedSQLiteStatement __preparedStmtOfDeleteLyrics;
+
   public LibraryDao_Impl(@NonNull final RoomDatabase __db) {
     this.__db = __db;
     this.__insertionAdapterOfSongEntity = new EntityInsertionAdapter<SongEntity>(__db) {
@@ -165,6 +167,14 @@ public final class LibraryDao_Impl implements LibraryDao {
       @NonNull
       public String createQuery() {
         final String _query = "DELETE FROM song_overrides WHERE songId = ?";
+        return _query;
+      }
+    };
+    this.__preparedStmtOfDeleteLyrics = new SharedSQLiteStatement(__db) {
+      @Override
+      @NonNull
+      public String createQuery() {
+        final String _query = "DELETE FROM lyrics_cache WHERE songId = ?";
         return _query;
       }
     };
@@ -324,6 +334,31 @@ public final class LibraryDao_Impl implements LibraryDao {
           }
         } finally {
           __preparedStmtOfDeleteOverride.release(_stmt);
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object deleteLyrics(final String songId, final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        final SupportSQLiteStatement _stmt = __preparedStmtOfDeleteLyrics.acquire();
+        int _argIndex = 1;
+        _stmt.bindString(_argIndex, songId);
+        try {
+          __db.beginTransaction();
+          try {
+            _stmt.executeUpdateDelete();
+            __db.setTransactionSuccessful();
+            return Unit.INSTANCE;
+          } finally {
+            __db.endTransaction();
+          }
+        } finally {
+          __preparedStmtOfDeleteLyrics.release(_stmt);
         }
       }
     }, $completion);

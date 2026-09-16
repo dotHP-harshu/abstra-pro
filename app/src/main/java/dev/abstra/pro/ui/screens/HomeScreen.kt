@@ -92,14 +92,15 @@ fun HomeScreen(
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     // Soft ambient gradient bleed
+                    val heroGradient = remember(colors.primary) {
+                        Brush.horizontalGradient(
+                            listOf(colors.primary.copy(alpha = 0.18f), Color.Transparent)
+                        )
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(colors.primary.copy(alpha = 0.18f), Color.Transparent)
-                                )
-                            )
+                            .background(heroGradient)
                     )
 
                     Row(
@@ -202,7 +203,7 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                         contentPadding = PaddingValues(horizontal = 2.dp)
                     ) {
-                        items(aiMixes) { mix ->
+                        items(aiMixes, key = { it.title }) { mix ->
                             Surface(
                                 modifier = Modifier
                                     .width(200.dp)
@@ -216,7 +217,7 @@ fun HomeScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .background(Brush.linearGradient(mix.gradientColors))
+                                        .background(remember(mix.gradientColors) { Brush.linearGradient(mix.gradientColors) })
                                         .padding(14.dp)
                                 ) {
                                     Column(
@@ -267,7 +268,7 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                         contentPadding = PaddingValues(horizontal = 2.dp)
                     ) {
-                        items(recentlyAdded.take(12)) { song ->
+                        items(recentlyAdded.take(12), key = { it.id }) { song ->
                             Column(
                                 modifier = Modifier
                                     .width(110.dp)
@@ -321,7 +322,7 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         contentPadding = PaddingValues(horizontal = 2.dp)
                     ) {
-                        items(topArtists.take(10)) { artist ->
+                        items(topArtists.take(10), key = { it.name }) { artist ->
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier.width(85.dp)
@@ -384,9 +385,12 @@ fun GreetingHeroCard(
         in 18..19 -> "Good evening"
         else -> "Good evening"
     }
+    val greetingGradient = remember(colors.primary, colors.surfaceAlt) {
+        Brush.horizontalGradient(listOf(colors.primary, colors.surfaceAlt))
+    }
     Box(
         modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(24.dp))
-            .background(brush = Brush.horizontalGradient(listOf(colors.primary, colors.surfaceAlt)))
+            .background(brush = greetingGradient)
             .padding(20.dp)
     ) {
         Column {

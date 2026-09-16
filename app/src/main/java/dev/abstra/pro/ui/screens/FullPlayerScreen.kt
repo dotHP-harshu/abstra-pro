@@ -62,9 +62,6 @@ fun FullPlayerScreen(
 ) {
     val colors = LocalAbstraColors.current
     var dominantColor by remember { mutableStateOf(colors.primary) }
-    var userSeekingPosition by remember { mutableStateOf<Long?>(null) }
-
-    val effectivePosition = userSeekingPosition ?: currentPosition
 
     // Horizontal swipe gesture across player to skip tracks (Lune UX)
     var dragAccumulator by remember { mutableFloatStateOf(0f) }
@@ -78,18 +75,20 @@ fun FullPlayerScreen(
         )
     )
 
+    val backgroundBrush = remember(dominantColor, colors.bgBackground) {
+        Brush.verticalGradient(
+            colors = listOf(
+                dominantColor.copy(alpha = 0.28f),
+                colors.bgBackground.copy(alpha = 0.95f),
+                colors.bgBackground
+            )
+        )
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        dominantColor.copy(alpha = 0.28f),
-                        colors.bgBackground.copy(alpha = 0.95f),
-                        colors.bgBackground
-                    )
-                )
-            )
+            .background(backgroundBrush)
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
                     onDragEnd = {
@@ -243,6 +242,14 @@ fun FullPlayerScreen(
                             modifier = Modifier.size(280.dp)
                         )
                     }
+                    PlayerDesignStyle.HEART_WINDOW -> {
+                        HeartWindowCenterpiece(
+                            song = currentSong,
+                            isPlaying = isPlaying,
+                            colors = colors,
+                            modifier = Modifier.size(280.dp)
+                        )
+                    }
                 }
             }
 
@@ -312,43 +319,12 @@ fun FullPlayerScreen(
             // ─────────────────────────────────────────────────────────────
             // 5. PROGRESS SEEKER & TIMESTAMPS
             // ─────────────────────────────────────────────────────────────
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Slider(
-                    value = effectivePosition.toFloat().coerceIn(0f, duration.toFloat().coerceAtLeast(1f)),
-                    onValueChange = { pos ->
-                        userSeekingPosition = pos.toLong()
-                    },
-                    onValueChangeFinished = {
-                        userSeekingPosition?.let { onSeekTo(it) }
-                        userSeekingPosition = null
-                    },
-                    valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
-                    colors = SliderDefaults.colors(
-                        thumbColor = colors.primary,
-                        activeTrackColor = colors.primary,
-                        inactiveTrackColor = colors.border
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = formatTime(effectivePosition),
-                        color = colors.textMuted,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = formatTime(duration),
-                        color = colors.textMuted,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
+            IsolatedPlaybackSlider(
+                currentPosition = currentPosition,
+                duration = duration,
+                colors = colors,
+                onSeekTo = onSeekTo
+            )
 
             Spacer(modifier = Modifier.height(6.dp))
 
@@ -491,7 +467,8 @@ fun FullPlayerScreen(
                                 PlayerDesignStyle.VINYL_RECORD -> PlayerDesignStyle.POLAROID
                                 PlayerDesignStyle.POLAROID -> PlayerDesignStyle.CASSETTE
                                 PlayerDesignStyle.CASSETTE -> PlayerDesignStyle.MINIMAL_ART
-                                PlayerDesignStyle.MINIMAL_ART -> PlayerDesignStyle.ROTATING_CD
+                                PlayerDesignStyle.MINIMAL_ART -> PlayerDesignStyle.HEART_WINDOW
+                                PlayerDesignStyle.HEART_WINDOW -> PlayerDesignStyle.ROTATING_CD
                             }
                             onStyleChange(nextStyle)
                         }
@@ -554,4 +531,53 @@ private fun formatTime(millis: Long): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return String.format("%02d:%02d", minutes, seconds)
+}
+
+@Composable
+fun IsolatedPlaybackSlider(
+    currentPosition: Long,
+    duration: Long,
+    colors: dev.abstra.pro.ui.theme.AbstraColors,
+    onSeekTo: (Long) -> Unit
+) {
+    var userSeekingPosition by remember { mutableStateOf<Long?>(null) }
+    val effectivePosition = userSeekingPosition ?: currentPosition
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Slider(
+            value = effectivePosition.toFloat().coerceIn(0f, duration.toFloat().coerceAtLeast(1f)),
+            onValueChange = { pos ->
+                userSeekingPosition = pos.toLong()
+            },
+            onValueChangeFinished = {
+                userSeekingPosition?.let { onSeekTo(it) }
+                userSeekingPosition = null
+            },
+            valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
+            colors = SliderDefaults.colors(
+                thumbColor = colors.primary,
+                activeTrackColor = colors.primary,
+                inactiveTrackColor = colors.border
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = formatTime(effectivePosition),
+                color = colors.textMuted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = formatTime(duration),
+                color = colors.textMuted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
 }

@@ -113,7 +113,8 @@ enum class PlayerDesignStyle {
     VINYL_RECORD,
     POLAROID,
     CASSETTE,
-    MINIMAL_ART
+    MINIMAL_ART,
+    HEART_WINDOW
 }
 
 // ─────────────────────────────────────────────────────────────

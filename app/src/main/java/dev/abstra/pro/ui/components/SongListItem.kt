@@ -1,7 +1,6 @@
 package dev.abstra.pro.ui.components
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,26 +34,11 @@ fun SongListItem(
     onSwipeNext: (() -> Unit)? = null
 ) {
     val colors = LocalAbstraColors.current
-    var dragAccumulator by remember { mutableFloatStateOf(0f) }
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .pointerInput(song.id) {
-                detectHorizontalDragGestures(
-                    onDragStart = { dragAccumulator = 0f },
-                    onHorizontalDrag = { change, dragAmount ->
-                        change.consume()
-                        dragAccumulator += dragAmount
-                    },
-                    onDragEnd = {
-                        if (dragAccumulator < -80f && onSwipeNext != null) {
-                            onSwipeNext()
-                        }
-                    }
-                )
-            }
             .clickable {
                 if (isSelectionMode) onSelectToggle() else onClick()
             },
@@ -76,7 +60,7 @@ fun SongListItem(
                 Spacer(modifier = Modifier.width(8.dp))
             }
 
-            ThematicAlbumArt(
+            ThumbnailOnly(
                 trackId = song.id,
                 title = song.title,
                 artist = song.artist,
@@ -84,8 +68,7 @@ fun SongListItem(
                 modifier = Modifier
                     .size(46.dp)
                     .clip(RoundedCornerShape(14.dp)),
-                cornerRadius = 14.dp,
-                showDetailsOnLarge = false
+                cornerRadius = 14.dp
             )
 
             Spacer(modifier = Modifier.width(14.dp))

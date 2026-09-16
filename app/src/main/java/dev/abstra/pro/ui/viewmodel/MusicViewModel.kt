@@ -139,6 +139,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val aiMixes: StateFlow<List<AiMix>> = aiEngine.aiMixes
 
     // ── Lyrics State ──
+    private var _lastLyricsSongId = ""
     private val _currentLyrics = MutableStateFlow<List<LyricsLine>>(emptyList())
     val currentLyrics: StateFlow<List<LyricsLine>> = _currentLyrics.asStateFlow()
 
@@ -298,6 +299,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         audioEngine.setGapless(enabled)
     }
 
+    private val _playlistPickerForSong = MutableStateFlow<Song?>(null)
+    val playlistPickerForSong: StateFlow<Song?> = _playlistPickerForSong.asStateFlow()
+
+    fun openPlaylistPicker(song: Song) { _playlistPickerForSong.value = song }
+    fun closePlaylistPicker() { _playlistPickerForSong.value = null }
+
     // ── Library & Playlist Operations ──
     fun toggleFavorite(song: Song) {
         viewModelScope.launch {
@@ -340,7 +347,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     suspend fun getSongsForPlaylist(playlistId: Long): List<Song> {
-        return repository.getSongsForPlaylistSync(playlistId)
+        val entityIds = repository.getSongsForPlaylistSync(playlistId).map { it.id }
+        val currentMap = allSongs.value.associateBy { it.id }
+        return entityIds.mapNotNull { currentMap[it] }
     }
 
     // ── Song Deletion ──
@@ -409,12 +418,15 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun loadLyricsForSong(song: Song) {
         viewModelScope.launch(Dispatchers.IO) {
+            if (_currentLyrics.value.isNotEmpty() && _lastLyricsSongId == song.id) return@launch
+            _lastLyricsSongId = song.id
             _lyricsTimeOffsetMs.value = 0L
             _currentLyrics.value = emptyList()
 
             // 1. Check matching .lrc file in same directory
             if (song.filePath.isNotBlank()) {
-                val lrcFile = File(song.filePath.substringBeforeLast(".") + ".lrc")
+                val baseNoExt = song.filePath.substringBeforeLast('.', missingDelimiterValue = song.filePath)
+                val lrcFile = File("$baseNoExt.lrc")
                 if (lrcFile.exists()) {
                     val parsed = LyricsParser.parse(lrcFile.readText())
                     _currentLyrics.value = parsed
