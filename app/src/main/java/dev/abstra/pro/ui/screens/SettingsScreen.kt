@@ -169,9 +169,6 @@ fun SettingsScreen(
                                                 PlayerDesignStyle.ROTATING_CD -> "CD"
                                                 PlayerDesignStyle.VINYL_RECORD -> "Vinyl"
                                                 PlayerDesignStyle.POLAROID -> "Polaroid"
-                                                PlayerDesignStyle.CASSETTE -> "Cassette"
-                                                PlayerDesignStyle.MINIMAL_ART -> "Minimal"
-                                                PlayerDesignStyle.HEART_WINDOW -> "Heart"
                                             },
                                             fontSize = 11.sp,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
@@ -382,7 +379,7 @@ fun SettingsScreen(
             // 6. ABOUT & PRIVACY
             // ─────────────────────────────────────────────────────────────
             item {
-                SettingsSection(title = "About Abstra Pro") {
+                SettingsSection(title = "Build with ❤️ by DotHP") {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),

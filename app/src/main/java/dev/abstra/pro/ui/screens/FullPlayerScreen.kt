@@ -38,6 +38,7 @@ import kotlin.math.abs
 @Composable
 fun FullPlayerScreen(
     currentSong: Song?,
+    pendingSong: Song?,
     isPlaying: Boolean,
     currentPosition: Long,
     duration: Long,
@@ -84,6 +85,8 @@ fun FullPlayerScreen(
             )
         )
     }
+
+    val showLoadingShimmer = currentSong != null && !isPlaying && pendingSong != null
 
     Box(
         modifier = modifier
@@ -206,7 +209,8 @@ fun FullPlayerScreen(
                             isPlaying = isPlaying,
                             rotation = rotationAngle,
                             colors = colors,
-                            modifier = Modifier.size(280.dp)
+                            modifier = Modifier.size(280.dp),
+                            showLoadingShimmer = showLoadingShimmer
                         )
                     }
                     PlayerDesignStyle.VINYL_RECORD -> {
@@ -215,7 +219,8 @@ fun FullPlayerScreen(
                             isPlaying = isPlaying,
                             rotation = rotationAngle,
                             colors = colors,
-                            modifier = Modifier.size(280.dp)
+                            modifier = Modifier.size(280.dp),
+                            showLoadingShimmer = showLoadingShimmer
                         )
                     }
                     PlayerDesignStyle.POLAROID -> {
@@ -223,31 +228,8 @@ fun FullPlayerScreen(
                             song = currentSong,
                             isPlaying = isPlaying,
                             colors = colors,
-                            modifier = Modifier.size(270.dp, 320.dp)
-                        )
-                    }
-                    PlayerDesignStyle.CASSETTE -> {
-                        CassettePlayerCenterpiece(
-                            song = currentSong,
-                            isPlaying = isPlaying,
-                            rotation = rotationAngle,
-                            colors = colors,
-                            modifier = Modifier.fillMaxWidth().height(190.dp)
-                        )
-                    }
-                    PlayerDesignStyle.MINIMAL_ART -> {
-                        MinimalArtCenterpiece(
-                            song = currentSong,
-                            colors = colors,
-                            modifier = Modifier.size(280.dp)
-                        )
-                    }
-                    PlayerDesignStyle.HEART_WINDOW -> {
-                        HeartWindowCenterpiece(
-                            song = currentSong,
-                            isPlaying = isPlaying,
-                            colors = colors,
-                            modifier = Modifier.size(280.dp)
+                            modifier = Modifier.size(270.dp, 320.dp),
+                            showLoadingShimmer = showLoadingShimmer
                         )
                     }
                 }
@@ -465,10 +447,7 @@ fun FullPlayerScreen(
                             val nextStyle = when (designStyle) {
                                 PlayerDesignStyle.ROTATING_CD -> PlayerDesignStyle.VINYL_RECORD
                                 PlayerDesignStyle.VINYL_RECORD -> PlayerDesignStyle.POLAROID
-                                PlayerDesignStyle.POLAROID -> PlayerDesignStyle.CASSETTE
-                                PlayerDesignStyle.CASSETTE -> PlayerDesignStyle.MINIMAL_ART
-                                PlayerDesignStyle.MINIMAL_ART -> PlayerDesignStyle.HEART_WINDOW
-                                PlayerDesignStyle.HEART_WINDOW -> PlayerDesignStyle.ROTATING_CD
+                                PlayerDesignStyle.POLAROID -> PlayerDesignStyle.ROTATING_CD
                             }
                             onStyleChange(nextStyle)
                         }

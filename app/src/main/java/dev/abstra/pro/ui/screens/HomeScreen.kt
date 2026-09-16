@@ -380,26 +380,45 @@ fun GreetingHeroCard(
     val greeting = when (hour) {
         in 0..5 -> "Good night"
         in 6..11 -> "Good morning"
-        in 12..13 -> "Good noon"
-        in 14..17 -> "Good afternoon"
-        in 18..19 -> "Good evening"
+        in 12..17 -> "Good afternoon"
         else -> "Good evening"
     }
-    val greetingGradient = remember(colors.primary, colors.surfaceAlt) {
-        Brush.horizontalGradient(listOf(colors.primary, colors.surfaceAlt))
+    val greetingGradient = remember(colors.primary, colors.bgSurface) {
+        Brush.horizontalGradient(
+            listOf(
+                colors.primary.copy(alpha = 0.25f),
+                Color.Transparent
+            )
+        )
     }
-    Box(
-        modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(24.dp))
-            .background(brush = greetingGradient)
-            .padding(20.dp)
+    Surface(
+        modifier = Modifier.fillMaxWidth().height(160.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = colors.bgSurface,
+        shadowElevation = 8.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border)
     ) {
-        Column {
-            Text(greeting, style = MaterialTheme.typography.headlineMedium, color = colors.textHeading)
-            Spacer(Modifier.weight(1f))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatChip(Icons.Default.History, dailyListeningTimeStr, colors)
-                StatChip(Icons.Default.MusicNote, totalSongs.toString(), colors)
-                StatChip(Icons.Default.Favorite, favoriteCount.toString(), colors)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(brush = greetingGradient)
+                .padding(24.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Text(
+                    text = greeting,
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.5).sp
+                    ),
+                    color = colors.textHeading
+                )
+                Spacer(Modifier.weight(1f))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StatChip(Icons.Default.History, dailyListeningTimeStr, colors)
+                    StatChip(Icons.Default.MusicNote, totalSongs.toString(), colors)
+                    StatChip(Icons.Default.Favorite, favoriteCount.toString(), colors)
+                }
             }
         }
     }

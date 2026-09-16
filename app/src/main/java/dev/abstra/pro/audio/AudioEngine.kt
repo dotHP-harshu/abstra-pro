@@ -29,9 +29,14 @@ class AudioEngine(private val context: Context) {
     private var mediaPlayer: MediaPlayer? = null
     private var secondaryMediaPlayer: MediaPlayer? = null
 
+    private val consecutiveFailures = java.util.concurrent.atomic.AtomicInteger(0)
+
     // ── Observable StateFlows ──
     private val _currentSong = MutableStateFlow<Song?>(null)
     val currentSong: StateFlow<Song?> = _currentSong.asStateFlow()
+
+    private val _pendingSong = MutableStateFlow<Song?>(null)
+    val pendingSong: StateFlow<Song?> = _pendingSong.asStateFlow()
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -199,11 +204,13 @@ class AudioEngine(private val context: Context) {
             }
         }
 
-        _currentSong.value = song
+        _pendingSong.value = song
         _currentPosition.value = 0L
         _duration.value = song.durationMs.coerceAtLeast(1000L)
+        _isPlaying.value = false
 
         if (song.id.startsWith("demo_")) {
+            _currentSong.value = song
             // Use procedural generator
             stopNativePlayers()
             proceduralSynth.setSpeed(_playbackSpeed.value)
@@ -234,32 +241,47 @@ class AudioEngine(private val context: Context) {
                         .build()
                 )
                 setDataSource(context, Uri.parse(song.uriString))
-                prepare()
+                setOnPreparedListener { mp ->
+                    val s = _pendingSong.value ?: return@setOnPreparedListener
+                    _currentSong.value = s
+                    consecutiveFailures.set(0)
+                    
+                    // Attach hardware effects
+                    effectsManager.attachSession(mp.audioSessionId)
+                    applyBalance()
+                    applySpeed()
+
+                    if (autoPlay) {
+                        mp.start()
+                        _isPlaying.value = true
+                        onSongStarted?.invoke(s)
+                        onPlaybackStateChange?.invoke(true)
+                    } else {
+                        _isPlaying.value = false
+                        onPlaybackStateChange?.invoke(false)
+                    }
+                }
+                setOnErrorListener { _, what, extra ->
+                    Log.e("AudioEngine", "MediaPlayer error what=$what extra=$extra")
+                    _isPlaying.value = false
+                    scope.launch {
+                        delay(400)
+                        playNext()
+                    }
+                    true
+                }
+                prepareAsync()
             }
 
             mediaPlayer = player
 
-            // Attach hardware effects
-            effectsManager.attachSession(player.audioSessionId)
-            applyBalance()
-            applySpeed()
-
             player.setOnCompletionListener {
                 handleSongCompletion()
             }
-
-            if (autoPlay) {
-                player.start()
-                _isPlaying.value = true
-                onSongStarted?.invoke(song)
-                onPlaybackStateChange?.invoke(true)
-            } else {
-                _isPlaying.value = false
-                onPlaybackStateChange?.invoke(false)
-            }
         } catch (e: Exception) {
             Log.e("AudioEngine", "Error playing song: ${song.title}", e)
-            playNext()
+            _isPlaying.value = false
+            scope.launch { delay(400); playNext() }
         }
     }
 
@@ -341,6 +363,12 @@ class AudioEngine(private val context: Context) {
         val q = _queue.value
         if (q.isEmpty()) return
 
+        if (consecutiveFailures.get() > q.size) {
+            _isPlaying.value = false
+            consecutiveFailures.set(0)
+            return
+        }
+
         if (_repeatMode.value == RepeatMode.REPEAT_ONE) {
             seekTo(0L)
             resume()
@@ -351,13 +379,16 @@ class AudioEngine(private val context: Context) {
         if (nextIdx >= q.size) {
             if (_repeatMode.value == RepeatMode.REPEAT_ALL) {
                 _currentIndex.value = 0
+                consecutiveFailures.incrementAndGet()
                 playSong(q[0])
             } else {
                 pause()
                 seekTo(0L)
+                consecutiveFailures.set(0)
             }
         } else {
             _currentIndex.value = nextIdx
+            consecutiveFailures.incrementAndGet()
             playSong(q[nextIdx])
         }
     }

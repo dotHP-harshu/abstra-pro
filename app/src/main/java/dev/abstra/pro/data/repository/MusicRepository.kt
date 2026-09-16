@@ -67,10 +67,11 @@ class MusicRepository(
     // MEDIASTORE SCANNER (Filters unwanted audio, <10s audio, voice notes)
     // ─────────────────────────────────────────────────────────────
 
-    suspend fun scanLocalMedia(targetFolderUri: String = "") = withContext(Dispatchers.IO) {
+    suspend fun scanLocalMedia(targetFolderUri: String = "", minDurationSec: Int = 10) = withContext(Dispatchers.IO) {
         if (_isScanning.value) return@withContext
         _isScanning.value = true
         val foundSongs = mutableListOf<SongEntity>()
+        val prefs = context.getSharedPreferences("abstra_prefs", Context.MODE_PRIVATE)
 
         try {
             val projection = arrayOf(
@@ -85,7 +86,7 @@ class MusicRepository(
             )
 
             // Filter out tracks shorter than 10 seconds and ringtones/alarms
-            var selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= 10000"
+            var selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= ${minDurationSec * 1000}"
             var selectionArgs: Array<String>? = null
 
             if (targetFolderUri.isNotBlank()) {
@@ -158,8 +159,13 @@ class MusicRepository(
                 }
             }
 
-            if (foundSongs.isNotEmpty()) {
-                libraryDao.insertSongs(foundSongs)
+            val excluded = prefs.getStringSet("excluded_folders", emptySet()) ?: emptySet()
+            val filtered = foundSongs.filter { entity ->
+                val parent = java.io.File(entity.filePath).parent ?: return@filter true
+                parent !in excluded
+            }
+            if (filtered.isNotEmpty()) {
+                libraryDao.insertSongs(filtered)
             }
             Log.i("MusicRepository", "Scanned ${foundSongs.size} songs from storage")
         } catch (e: Exception) {

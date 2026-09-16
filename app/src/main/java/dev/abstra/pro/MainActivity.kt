@@ -54,6 +54,7 @@ class MainActivity : ComponentActivity() {
 
             // Playback state
             val currentSong by viewModel.currentSong.collectAsState()
+            val pendingSong by viewModel.pendingSong.collectAsState()
             val isPlaying by viewModel.isPlaying.collectAsState()
             val currentPosition by viewModel.currentPosition.collectAsState()
             val duration by viewModel.duration.collectAsState()
@@ -69,6 +70,7 @@ class MainActivity : ComponentActivity() {
 
             // Library data
             val allSongs by viewModel.allSongs.collectAsState()
+            val visibleSongs by viewModel.visibleSongs.collectAsState()
             val playlists by viewModel.playlists.collectAsState()
             val aiMixes by viewModel.aiMixes.collectAsState()
             val lyricsLines by viewModel.currentLyrics.collectAsState()
@@ -169,6 +171,7 @@ class MainActivity : ComponentActivity() {
                         .fillMaxSize()
                         .background(colors.bgBackground)
                         .statusBarsPadding()
+                        .navigationBarsPadding()
                 ) {
                     // Main Content Scaffold
                     Column(modifier = Modifier.fillMaxSize()) {
@@ -212,7 +215,7 @@ class MainActivity : ComponentActivity() {
                                     HomeScreen(
                                         currentSong = currentSong,
                                         isPlaying = isPlaying,
-                                        recentlyAdded = allSongs.take(10),
+                                        recentlyAdded = visibleSongs.sortedByDescending { it.dateAdded }.take(10),
                                         playlists = playlists,
                                         aiMixes = aiMixes,
                                         topArtists = emptyList(),
@@ -233,7 +236,7 @@ class MainActivity : ComponentActivity() {
                                 }
                                 MainNavigationTab.SONGS -> {
                                     SongsScreen(
-                                        songs = allSongs,
+                                        songs = visibleSongs,
                                         currentSong = currentSong,
                                         isPlaying = isPlaying,
                                         onSongClick = { viewModel.playSong(it) },
@@ -260,7 +263,7 @@ class MainActivity : ComponentActivity() {
                                     PlaylistsScreen(
                                         playlists = playlists,
                                         favoriteSongs = allSongs.filter { it.isFavorite },
-                                        recentlyAddedSongs = allSongs.take(20),
+                                        recentlyAddedSongs = visibleSongs.sortedByDescending { it.dateAdded }.take(20),
                                         currentSong = currentSong,
                                         isPlaying = isPlaying,
                                         onPlaylistClick = { /* open playlist */ },
@@ -337,7 +340,6 @@ class MainActivity : ComponentActivity() {
                         exit = slideOutVertically { it } + fadeOut(),
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .padding(bottom = 12.dp)
                     ) {
                         MiniPlayer(
                             song = currentSong,
@@ -359,6 +361,7 @@ class MainActivity : ComponentActivity() {
                     ) {
                         FullPlayerScreen(
                             currentSong = currentSong,
+                            pendingSong = pendingSong,
                             isPlaying = isPlaying,
                             currentPosition = currentPosition,
                             duration = duration,

@@ -79,6 +79,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     // ── Audio Engine StateFlows Exposed to UI ──
     val currentSong: StateFlow<Song?> = audioEngine.currentSong
+    val pendingSong: StateFlow<Song?> = audioEngine.pendingSong
     val isPlaying: StateFlow<Boolean> = audioEngine.isPlaying
     val currentPosition: StateFlow<Long> = audioEngine.currentPosition
     val duration: StateFlow<Long> = audioEngine.duration
@@ -112,6 +113,18 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         prefs.edit().putStringSet("excluded_folders", updated).apply()
         _excludedFolderPaths.value = updated
     }
+
+    val visibleSongs: StateFlow<List<Song>> = combine(
+        allSongs,
+        excludedFolderPaths,
+        minDurationFilterSec
+    ) { songs, excluded, minDurSec ->
+        val minDurMs = minDurSec * 1000L
+        songs.filter { song ->
+            val parent = java.io.File(song.filePath).parent ?: return@filter true
+            parent !in excluded && song.durationMs >= minDurMs
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun restoreFolder(folderPath: String) {
         val updated = _excludedFolderPaths.value - folderPath
@@ -161,9 +174,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
         // Initial scan on boot
         viewModelScope.launch {
-            repository.scanLocalMedia(_musicFolderUri.value)
+            repository.scanLocalMedia(_musicFolderUri.value, _minDurationFilterSec.value)
             // Regenerate AI mixes once songs loaded
-            val initialSongs = allSongs.first { it.isNotEmpty() }
+            val initialSongs = visibleSongs.first { it.isNotEmpty() }
             aiEngine.regenerateMixes(initialSongs)
         }
     }
@@ -314,8 +327,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun rescanLibrary() {
         viewModelScope.launch {
-            repository.scanLocalMedia(_musicFolderUri.value)
-            val songs = allSongs.value
+            repository.scanLocalMedia(_musicFolderUri.value, _minDurationFilterSec.value)
+            val songs = visibleSongs.value
             if (songs.isNotEmpty()) {
                 aiEngine.regenerateMixes(songs)
             }

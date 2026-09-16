@@ -40,7 +40,8 @@ fun RotatingCdCenterpiece(
     isPlaying: Boolean,
     rotation: Float,
     colors: AbstraColors,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showLoadingShimmer: Boolean = false
 ) {
     Box(
         modifier = modifier.fillMaxSize(),
@@ -123,7 +124,8 @@ fun RotatingCdCenterpiece(
                         uriString = song?.uriString ?: "",
                         modifier = Modifier.fillMaxSize(),
                         cornerRadius = 999.dp,
-                        showDetailsOnLarge = false
+                        showDetailsOnLarge = false,
+                        showLoadingShimmer = showLoadingShimmer
                     )
 
                     // Center Spindle Hole
@@ -166,7 +168,8 @@ fun VinylRecordCenterpiece(
     isPlaying: Boolean,
     rotation: Float,
     colors: AbstraColors,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showLoadingShimmer: Boolean = false
 ) {
     Box(
         modifier = modifier.fillMaxSize(),
@@ -255,7 +258,8 @@ fun VinylRecordCenterpiece(
                     uriString = song?.uriString ?: "",
                     modifier = Modifier.fillMaxSize(),
                     cornerRadius = 999.dp,
-                    showDetailsOnLarge = false
+                    showDetailsOnLarge = false,
+                    showLoadingShimmer = showLoadingShimmer
                 )
 
                 // Center Spindle Hole
@@ -304,7 +308,8 @@ fun PolaroidCenterpiece(
     song: Song?,
     isPlaying: Boolean,
     colors: AbstraColors,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showLoadingShimmer: Boolean = false
 ) {
     Box(
         modifier = modifier.fillMaxSize(0.92f),
@@ -333,7 +338,8 @@ fun PolaroidCenterpiece(
                         artist = song?.artist ?: "",
                         uriString = song?.uriString ?: "",
                         modifier = Modifier.fillMaxSize(),
-                        cornerRadius = 8.dp
+                        cornerRadius = 8.dp,
+                        showLoadingShimmer = showLoadingShimmer
                     )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
@@ -369,121 +375,7 @@ fun PolaroidCenterpiece(
     }
 }
 
-// ==========================================
-// 03. CASSETTE PLAYER CENTERPIECE
-// ==========================================
-@Composable
-fun CassettePlayerCenterpiece(
-    song: Song?,
-    isPlaying: Boolean,
-    rotation: Float,
-    colors: AbstraColors,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth(0.92f)
-            .height(220.dp)
-            .shadow(12.dp, RoundedCornerShape(18.dp), spotColor = colors.primary.copy(alpha = 0.3f)),
-        shape = RoundedCornerShape(18.dp),
-        color = colors.surfaceAlt
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "SIDE A  •  ${song?.title?.take(14) ?: "RETRO MIX"}",
-                style = MaterialTheme.typography.labelSmall,
-                color = colors.textHeading
-            )
 
-            // Cassette tape window
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(90.dp),
-                shape = RoundedCornerShape(10.dp),
-                color = colors.bgBase
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Left spool
-                    Box(
-                        modifier = Modifier
-                            .size(46.dp)
-                            .graphicsLayer { rotationZ = if (isPlaying) rotation else 0f }
-                            .clip(CircleShape)
-                            .background(Color.White)
-                            .border(3.dp, colors.primary, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(modifier = Modifier.size(14.dp).clip(CircleShape).background(colors.primary))
-                    }
-
-                    // Tape bridge
-                    Box(
-                        modifier = Modifier
-                            .width(80.dp)
-                            .height(18.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(colors.primary.copy(alpha = 0.2f))
-                    )
-
-                    // Right spool
-                    Box(
-                        modifier = Modifier
-                            .size(46.dp)
-                            .graphicsLayer { rotationZ = if (isPlaying) rotation else 0f }
-                            .clip(CircleShape)
-                            .background(Color.White)
-                            .border(3.dp, colors.primary, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(modifier = Modifier.size(14.dp).clip(CircleShape).background(colors.primary))
-                    }
-                }
-            }
-
-            Text(
-                text = song?.artist ?: "Unknown Artist",
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.textMuted
-            )
-        }
-    }
-}
-
-// ==========================================
-// 04. MINIMAL ART CENTERPIECE
-// ==========================================
-@Composable
-fun MinimalArtCenterpiece(
-    song: Song?,
-    colors: AbstraColors,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .fillMaxSize(0.88f)
-            .shadow(20.dp, RoundedCornerShape(28.dp), spotColor = colors.primary.copy(alpha = 0.4f))
-            .clip(RoundedCornerShape(28.dp))
-            .border(2.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(28.dp))
-    ) {
-        ThematicAlbumArt(
-            trackId = song?.id ?: "demo",
-            title = song?.title ?: "",
-            artist = song?.artist ?: "",
-            uriString = song?.uriString ?: "",
-            modifier = Modifier.fillMaxSize(),
-            cornerRadius = 28.dp
-        )
-    }
-}
 
 // ── Subtle Cute Vector Accents ──
 
@@ -531,112 +423,4 @@ fun TapeStickerBadge(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
         )
     }
-}
-
-@Composable
-fun HeartWindowCenterpiece(
-    song: Song?,
-    isPlaying: Boolean,
-    colors: AbstraColors,
-    modifier: Modifier = Modifier
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "heartPulse")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.98f,
-        targetValue = if (isPlaying) 1.02f else 0.98f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse"
-    )
-
-    val heartShape = remember {
-        GenericShape { size, _ ->
-            val w = size.width
-            val h = size.height
-            moveTo(w * 0.5f, h * 0.88f)
-            cubicTo(w * 0.05f, h * 0.55f, 0f, h * 0.22f, w * 0.25f, h * 0.08f)
-            cubicTo(w * 0.42f, h * 0.02f, w * 0.5f, h * 0.28f, w * 0.5f, h * 0.28f)
-            cubicTo(w * 0.5f, h * 0.28f, w * 0.58f, h * 0.02f, w * 0.75f, h * 0.08f)
-            cubicTo(w * 1.0f, h * 0.22f, w * 0.95f, h * 0.55f, w * 0.5f, h * 0.88f)
-            close()
-        }
-    }
-
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .scale(pulseScale)
-            .testTag("preset_heart_window"),
-        contentAlignment = Alignment.Center
-    ) {
-        SparkleStarIcon(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .offset(x = 12.dp, y = 14.dp),
-            size = 18.dp,
-            color = Color(0xFFFF99C2)
-        )
-        SparkleStarIcon(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = (-12).dp, y = 18.dp),
-            size = 16.dp,
-            color = Color(0xFFFF99C2)
-        )
-        SparkleStarIcon(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .offset(x = 18.dp, y = (-24).dp),
-            size = 14.dp,
-            color = Color(0xFFFFD1E3)
-        )
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize(0.92f)
-                .aspectRatio(1f)
-                .shadow(16.dp, shape = heartShape, spotColor = colors.primary.copy(alpha = 0.5f))
-            	.clip(heartShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            Color(0xFFFFEBF2),
-                            Color(0xFFFFCBE0),
-                            Color(0xFFFF85B3)
-                        )
-                    )
-                )
-                .padding(14.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(heartShape)
-                    .border(2.5.dp, Color.White, heartShape),
-                contentAlignment = Alignment.Center
-            ) {
-                ThematicAlbumArt(
-                    trackId = song?.id ?: "demo",
-                    title = song?.title ?: "daydreams",
-                    artist = song?.artist ?: "lovelyy",
-                    uriString = song?.uriString ?: "",
-                    modifier = Modifier.fillMaxSize(),
-                    cornerRadius = 0.dp,
-                    showDetailsOnLarge = false
-                )
-            }
-        }
-
-        FloatingHeartBadge(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .offset(x = (-6).dp, y = (-12).dp),
-            size = 38.dp,
-            fillColor = Color(0xFFFF4D7E),
-            borderColor = Color.White
-        )
-    }
-}
+}

@@ -111,10 +111,7 @@ enum class UiDensity {
 enum class PlayerDesignStyle {
     ROTATING_CD,
     VINYL_RECORD,
-    POLAROID,
-    CASSETTE,
-    MINIMAL_ART,
-    HEART_WINDOW
+    POLAROID
 }
 
 // ─────────────────────────────────────────────────────────────

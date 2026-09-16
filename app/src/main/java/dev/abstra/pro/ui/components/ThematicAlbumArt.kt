@@ -27,6 +27,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.abstra.pro.ui.theme.LocalAbstraColors
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.RepeatMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
@@ -65,6 +70,7 @@ fun ThematicAlbumArt(
     uriString: String = "",
     cornerRadius: Dp = 12.dp,
     showDetailsOnLarge: Boolean = true,
+    showLoadingShimmer: Boolean = false,
     onPaletteReady: ((PaletteColors) -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -72,6 +78,18 @@ fun ThematicAlbumArt(
     val isDemoTrack = trackId.startsWith("demo_")
     val cacheKey = if (uriString.isNotBlank() && !isDemoTrack) uriString else null
     var embeddedBitmap by remember(trackId, uriString) { mutableStateOf(EmbeddedArtCache.get(cacheKey ?: "")) }
+
+    val infiniteTransition = rememberInfiniteTransition()
+    val shimmerTranslateState = infiniteTransition.animateFloat(
+        initialValue = -500f,
+        targetValue = 1500f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = androidx.compose.animation.core.LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer"
+    )
+    val shimmerTranslate = shimmerTranslateState.value
 
     LaunchedEffect(trackId, uriString) {
         val key = cacheKey
@@ -218,6 +236,24 @@ fun ThematicAlbumArt(
                 }
             }
         }
+
+        if (showLoadingShimmer) {
+            Spacer(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.White.copy(alpha = 0.25f),
+                                Color.Transparent
+                            ),
+                            start = Offset(shimmerTranslate, shimmerTranslate),
+                            end = Offset(shimmerTranslate + 250f, shimmerTranslate + 250f)
+                        )
+                    )
+            )
+        }
     }
 }
 
@@ -230,16 +266,52 @@ fun ThumbnailOnly(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 12.dp
 ) {
+    val context = LocalContext.current
     val colors = LocalAbstraColors.current
-    val cached = remember(uriString) { EmbeddedArtCache.get(if (uriString.isNotBlank() && !trackId.startsWith("demo_")) uriString else "") }
+    val isDemoTrack = trackId.startsWith("demo_")
+    val cacheKey = if (uriString.isNotBlank() && !isDemoTrack) uriString else null
+    var embeddedBitmap by remember(trackId, uriString) { mutableStateOf(EmbeddedArtCache.get(cacheKey ?: "")) }
+
+    LaunchedEffect(trackId, uriString) {
+        val key = cacheKey
+        if (key != null && embeddedBitmap == null) {
+            var retriever: MediaMetadataRetriever? = null
+            var loaded: ImageBitmap? = null
+            withContext(Dispatchers.IO) {
+                EmbeddedArtCache.decodeSemaphore.acquire()
+                try {
+                    retriever = MediaMetadataRetriever()
+                    retriever?.setDataSource(context, android.net.Uri.parse(uriString))
+                    val artBytes = retriever?.embeddedPicture
+                    if (artBytes != null && artBytes.isNotEmpty()) {
+                        val opts = BitmapFactory.Options().apply { inSampleSize = 4 }
+                        val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size, opts)
+                        if (bitmap != null) {
+                            val scaled = if (bitmap.width > 200 || bitmap.height > 200) {
+                                android.graphics.Bitmap.createScaledBitmap(bitmap, 200, 200, true)
+                            } else bitmap
+                            val imageBitmap = scaled.asImageBitmap()
+                            EmbeddedArtCache.put(key, imageBitmap)
+                            loaded = imageBitmap
+                        }
+                    }
+                } catch (_: Exception) {
+                } finally {
+                    try { retriever?.release() } catch (_: Exception) {}
+                    EmbeddedArtCache.decodeSemaphore.release()
+                }
+            }
+            if (loaded != null) embeddedBitmap = loaded
+        }
+    }
 
     Box(
         modifier = modifier.clip(RoundedCornerShape(cornerRadius)),
         contentAlignment = Alignment.Center
     ) {
-        if (cached != null) {
+        if (embeddedBitmap != null) {
             Image(
-                bitmap = cached,
+                bitmap = embeddedBitmap!!,
                 contentDescription = "$title album art",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
