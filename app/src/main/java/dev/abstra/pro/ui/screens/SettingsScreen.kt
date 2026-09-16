@@ -34,6 +34,10 @@ fun SettingsScreen(
     onThemeChange: (AppTheme) -> Unit,
     currentDesignStyle: PlayerDesignStyle,
     onDesignStyleChange: (PlayerDesignStyle) -> Unit,
+    backgroundPlayback: Boolean,
+    onBackgroundPlaybackToggle: (Boolean) -> Unit,
+    shareAudioFocus: Boolean,
+    onShareAudioFocusToggle: (Boolean) -> Unit,
     visualizerEnabled: Boolean,
     onVisualizerToggle: (Boolean) -> Unit,
     fullPlayerBg: FullPlayerBackground,
@@ -140,6 +144,47 @@ fun SettingsScreen(
                                 valueRange = 0f..10f,
                                 steps = 9,
                                 colors = SliderDefaults.colors(thumbColor = colors.primary, activeTrackColor = colors.primary)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ─────────────────────────────────────────────────────────────
+            // 3.5 BACKGROUND PLAYBACK
+            // ─────────────────────────────────────────────────────────────
+            item {
+                SettingsSection(title = "Background Playback") {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Keep Playing in Background", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
+                                Text("Music continues after you close or swipe the app from recents.", fontSize = 12.sp, color = colors.textSecondary)
+                            }
+                            Switch(
+                                checked = backgroundPlayback,
+                                onCheckedChange = onBackgroundPlaybackToggle,
+                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = colors.primary)
+                            )
+                        }
+                        Divider(color = colors.border.copy(alpha = 0.5f))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Play With Other Apps", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
+                                Text("Lower volume when other apps play audio, instead of pausing.", fontSize = 12.sp, color = colors.textSecondary)
+                            }
+                            Switch(
+                                checked = shareAudioFocus,
+                                onCheckedChange = onShareAudioFocusToggle,
+                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = colors.primary)
                             )
                         }
                     }

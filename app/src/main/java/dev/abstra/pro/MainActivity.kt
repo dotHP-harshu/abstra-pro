@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         val viewModel = ViewModelProvider(this)[MusicViewModel::class.java]
-        viewModel.audioEngine.setForegroundState(true)
+        dev.abstra.pro.service.MusicPlaybackService.audioEngine?.setForegroundState(true)
         val intent = Intent(this, MusicPlaybackService::class.java)
         ContextCompat.startForegroundService(this, intent)
         bindService(intent, serviceConnection, android.content.Context.BIND_AUTO_CREATE)
@@ -66,7 +66,7 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         val viewModel = ViewModelProvider(this)[MusicViewModel::class.java]
-        viewModel.audioEngine.setForegroundState(false)
+        dev.abstra.pro.service.MusicPlaybackService.audioEngine?.setForegroundState(false)
         viewModel.persistNowPlaying()
     }
 
@@ -104,6 +104,8 @@ class MainActivity : ComponentActivity() {
             val visualizerEnabled by viewModel.visualizerEnabled.collectAsState()
             val fullPlayerBg by viewModel.fullPlayerBg.collectAsState()
             val showTabBar by viewModel.showTabBar.collectAsState()
+            val backgroundPlayback by viewModel.backgroundPlayback.collectAsState()
+            val shareAudioFocus by viewModel.shareAudioFocus.collectAsState()
             val appName by viewModel.customAppName.collectAsState()
             val crossfadeSeconds by viewModel.crossfadeSeconds.collectAsState()
             val gaplessEnabled by viewModel.gaplessEnabled.collectAsState()
@@ -376,6 +378,10 @@ class MainActivity : ComponentActivity() {
                                         onThemeChange = { viewModel.setTheme(it) },
                                         currentDesignStyle = currentDesignStyle,
                                         onDesignStyleChange = { viewModel.setDesignStyle(it) },
+                                        backgroundPlayback = backgroundPlayback,
+                                        onBackgroundPlaybackToggle = { viewModel.setBackgroundPlayback(it) },
+                                        shareAudioFocus = shareAudioFocus,
+                                        onShareAudioFocusToggle = { viewModel.setShareAudioFocus(it) },
                                         visualizerEnabled = visualizerEnabled,
                                         onVisualizerToggle = { viewModel.setVisualizerEnabled(it) },
                                         fullPlayerBg = fullPlayerBg,
@@ -476,12 +482,14 @@ class MainActivity : ComponentActivity() {
                         exit = slideOutVertically { it } + fadeOut(),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        EqualizerScreen(
-                            effectsManager = viewModel.audioEngine.effectsManager,
-                            playbackSpeed = playbackSpeed,
-                            onSpeedChange = { viewModel.setPlaybackSpeed(it) },
-                            onClose = { viewModel.setEqualizerOpen(false) }
-                        )
+                        dev.abstra.pro.service.MusicPlaybackService.audioEngine?.effectsManager?.let { effectsManager ->
+                            EqualizerScreen(
+                                effectsManager = effectsManager,
+                                playbackSpeed = playbackSpeed,
+                                onSpeedChange = { viewModel.setPlaybackSpeed(it) },
+                                onClose = { viewModel.setEqualizerOpen(false) }
+                            )
+                        }
                     }
 
                     // 6. Lyrics Overlay Screen

@@ -72,6 +72,52 @@ class AudioEngine(private val context: Context) {
     private val _gaplessEnabled = MutableStateFlow(true)
     val gaplessEnabled: StateFlow<Boolean> = _gaplessEnabled.asStateFlow()
 
+    private val _currentVolume = MutableStateFlow(1.0f)
+    val currentVolume: StateFlow<Float> = _currentVolume.asStateFlow()
+
+    fun setVolume(v: Float) {
+        val clamped = v.coerceIn(0f, 1f)
+        _currentVolume.value = clamped
+        try { mediaPlayer?.setVolume(clamped, clamped) } catch (_: Exception) {}
+        proceduralSynth.setVolume(clamped)
+    }
+
+    private val _backgroundPlaybackEnabled = MutableStateFlow(
+        prefs.getBoolean("background_playback", true)
+    )
+    val backgroundPlaybackEnabled: StateFlow<Boolean> = _backgroundPlaybackEnabled.asStateFlow()
+
+    private val _shareAudioFocusEnabled = MutableStateFlow(
+        prefs.getBoolean("share_audio_focus", false)
+    )
+    val shareAudioFocusEnabled: StateFlow<Boolean> = _shareAudioFocusEnabled.asStateFlow()
+
+    fun setBackgroundPlaybackEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("background_playback", enabled).apply()
+        _backgroundPlaybackEnabled.value = enabled
+    }
+
+    fun setShareAudioFocusEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("share_audio_focus", enabled).apply()
+        _shareAudioFocusEnabled.value = enabled
+        applyFocusPolicy()
+    }
+
+    fun applyFocusPolicy() {
+        // Abandons and re-acquires focus so the new policy takes effect immediately.
+        abandonAudioFocus()
+        if (_currentSong.value != null) requestAudioFocus()
+    }
+
+    private fun abandonAudioFocus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(audioFocusChangeListener)
+        }
+    }
+
     // ── Sleep Timer ──
     private val _sleepTimerSecondsRemaining = MutableStateFlow(0)
     val sleepTimerSecondsRemaining: StateFlow<Int> = _sleepTimerSecondsRemaining.asStateFlow()
@@ -212,6 +258,7 @@ class AudioEngine(private val context: Context) {
         _currentPosition.value = 0L
         _duration.value = song.durationMs.coerceAtLeast(1000L)
         _isPlaying.value = false
+        _shouldBePlaying = autoPlay
 
         if (song.id.startsWith("demo_")) {
             _currentSong.value = song
@@ -323,6 +370,7 @@ class AudioEngine(private val context: Context) {
     }
 
     fun pause() {
+        _shouldBePlaying = false
         _isPlaying.value = false
         onPlaybackStateChange?.invoke(false)
         proceduralSynth.pause()
@@ -573,32 +621,58 @@ class AudioEngine(private val context: Context) {
 
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focus ->
         when (focus) {
-            AudioManager.AUDIOFOCUS_LOSS -> pause()
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pause()
-            AudioManager.AUDIOFOCUS_GAIN -> resume()
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                try { mediaPlayer?.setVolume(1.0f, 1.0f) } catch (_: Exception) {}
+                if (_shouldBePlaying) resume()
+            }
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                // If sharing audio focus is enabled, ignore loss so other apps can continue.
+                if (!_shareAudioFocusEnabled.value) {
+                    pause()
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                if (!_shareAudioFocusEnabled.value) {
+                    pause()
+                    _shouldBePlaying = true // remember intent so we resume on gain
+                } else {
+                    // When sharing, simply lower volume briefly then continue.
+                    try { mediaPlayer?.setVolume(0.2f, 0.2f) } catch (_: Exception) {}
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                // Lower volume to 20% but keep playing.
+                try { mediaPlayer?.setVolume(0.2f, 0.2f) } catch (_: Exception) {}
+            }
         }
     }
 
+    @Volatile private var _shouldBePlaying = false
+
     private fun requestAudioFocus(): Boolean {
+        // When sharing audio focus, we request transient focus that allows other apps to keep playing.
+        // If sharing is OFF, we request full focus.
+        val focusGain = if (_shareAudioFocusEnabled.value) {
+            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+        } else {
+            AudioManager.AUDIOFOCUS_GAIN
+        }
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (audioFocusRequest == null) {
-                audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                    .setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                            .build()
-                    )
-                    .setOnAudioFocusChangeListener(audioFocusChangeListener)
-                    .build()
-            }
+            audioFocusRequest = AudioFocusRequest.Builder(focusGain)
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                .setOnAudioFocusChangeListener(audioFocusChangeListener)
+                .setWillPauseWhenDucked(false)
+                .build()
             audioManager.requestAudioFocus(audioFocusRequest!!) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         } else {
             @Suppress("DEPRECATION")
             audioManager.requestAudioFocus(
-                audioFocusChangeListener,
-                AudioManager.STREAM_MUSIC,
-                AudioManager.AUDIOFOCUS_GAIN
+                audioFocusChangeListener, AudioManager.STREAM_MUSIC, focusGain
             ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         }
     }

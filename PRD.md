@@ -252,3 +252,148 @@ Home-screen widget + consolidated customization screen, Gesture customization, m
 - New-app cold start and list-scroll performance at or better than Abstra's current benchmarks.
 - Visual QA: every new screen reviewed side-by-side against the shared design-system library for consistency (no one-off styling drift).
 - Licensing decision (§3) documented and consistent across every source file's header/LICENSE.
+
+
+the app is not much better and personalised according to me but still i want some improvements:
+
+- when i open app it automatically start playing last played song, i want to disable it. instead i want to see my recently played songs or playlists.
+
+- the sliding down swap in full player to hide the full player is not working.
+
+- make persistence states like the sorting i have to reset the sorting everytime
+
+- when i click on any input (search and custom app name) it does not focus out even clicking outside the app
+
+- in header (custom app name and logo) use the original logo or a custom logo with defined size or properties.
+
+- i am gettin a notification control panel but it is not working properly, also make the control icons better or redesign.
+
+- i get an icon in the fullplayer ( i think it was created when i mention media player feature) that is useless for , **remove it**. When i mention media player my mean was in new phones when media is playing it make a box  (panel with detail and controls) in the phone's top options bar (where data icons ,aeroplane mode toggle, wifi toggle etc. live) appears i want this feature (**if you look into the absta i was implemented this**)
+
+- a powerfull background player similar to abstra when user clear the app from recent tab.
+
+- when we hide a folder it disappears from the list and then user is unable to unhide that hidded folder. either you can show hidded folder with different separeate style to unhide them or if you will look into lune player, it handled it very beautifully, it shows a list of unhidded folder (as current) also make dropdown with list of folders included a check if folder is checked it is unhidden and showing in the list if it is unchecked it is hidded and not showing in the list.
+
+- i want the original abstra's rotating cd centerpiece and i get the code from abstra's codebase which is 
+```kt
+// Rotating CD Body
+        Box(
+            modifier = Modifier
+                .fillMaxSize(0.92f)
+                .rotate(if (isPlaying) rotation else 0f)
+                .shadow(16.dp, shape = CircleShape, spotColor = colors.primary.copy(alpha = 0.4f))
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFFFFD6E7),
+                            Color(0xFFFFBBD7),
+                            Color(0xFFFFE0ED),
+                            Color(0xFFF799C0),
+                            Color(0xFFFFD6E7)
+                        )
+                    )
+                )
+                .border(3.5.dp, Color(0xFFFFFFFF), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            // Metallic / Holographic rainbow light sheen streaks
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width
+                val h = size.height
+                val cx = w / 2f
+                val cy = h / 2f
+
+                // Concentric data grooves
+                drawCircle(
+                    color = Color(0x33FFFFFF),
+                    radius = w * 0.42f,
+                    center = Offset(cx, cy),
+                    style = Stroke(width = 1.5f)
+                )
+                drawCircle(
+                    color = Color(0x28E14E86),
+                    radius = w * 0.38f,
+                    center = Offset(cx, cy),
+                    style = Stroke(width = 1f)
+                )
+                drawCircle(
+                    color = Color(0x33FFFFFF),
+                    radius = w * 0.34f,
+                    center = Offset(cx, cy),
+                    style = Stroke(width = 1.5f)
+                )
+
+                // Rainbow iridescent sheen triangle fans
+                val sheenPath1 = Path().apply {
+                    moveTo(cx, cy)
+                    lineTo(cx + w * 0.48f, cy - h * 0.25f)
+                    lineTo(cx + w * 0.35f, cy - h * 0.45f)
+                    close()
+                }
+                drawPath(sheenPath1, Color(0x44FFFFFF))
+
+                val sheenPath2 = Path().apply {
+                    moveTo(cx, cy)
+                    lineTo(cx - w * 0.48f, cy + h * 0.25f)
+                    lineTo(cx - w * 0.35f, cy + h * 0.45f)
+                    close()
+                }
+                drawPath(sheenPath2, Color(0x44FFFFFF))
+            }
+
+            // Outer transparent hub ring
+            Box(
+                modifier = Modifier
+                    .fillMaxSize(0.62f)
+                    .clip(CircleShape)
+                    .background(Color(0x33FFFFFF))
+                    .border(2.dp, Color(0x66FFFFFF), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                // Center Album Artwork Label
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize(0.72f)
+                        .clip(CircleShape)
+                        .border(2.5.dp, colors.primary, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    ThematicAlbumArt(
+                        trackId = song?.id ?: "demo",
+                        title = song?.title ?: "daydreams",
+                        artist = song?.artist ?: "lovelyy",
+                        uriString = song?.uriString ?: "",
+                        modifier = Modifier.fillMaxSize(),
+                        cornerRadius = 999.dp,
+                        showDetailsOnLarge = false
+                    )
+
+                    // Spindle Hole
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFFFF0F5))
+                            .border(2.dp, Color(0xFFE14E86), CircleShape)
+                    )
+                }
+            }
+        }
+
+        // Cute Bow on top-left edge of the CD
+        BowRibbonIcon(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .offset(x = 6.dp, y = 6.dp)
+                .size(46.dp)
+        )
+```
+
+- home screen will look like 
+```
+greeting
+recently played
+recently added 
+ai mixed 
+```

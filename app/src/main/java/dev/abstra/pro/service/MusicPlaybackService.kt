@@ -1,5 +1,6 @@
 package dev.abstra.pro.service
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -10,57 +11,112 @@ import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.SimpleBasePlayer
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import dev.abstra.pro.MainActivity
 import dev.abstra.pro.R
 import dev.abstra.pro.audio.AudioEngine
-import kotlinx.coroutines.*
-import com.google.common.util.concurrent.ListenableFuture
+import dev.abstra.pro.ui.screens.AvailableRoute
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import dev.abstra.pro.ui.screens.AvailableRoute
 
 @UnstableApi
 class MusicPlaybackService : MediaSessionService() {
-    private var mediaSession: MediaSession? = null
     lateinit var audioEngine: AudioEngine
         private set
+
+    private var mediaSession: MediaSession? = null
+    private var invalidatePlayerState: (() -> Unit)? = null
 
     private val _availableRoutes = MutableStateFlow<List<AvailableRoute>>(emptyList())
     val availableRoutes: StateFlow<List<AvailableRoute>> = _availableRoutes.asStateFlow()
 
-    // MediaRouter stub
-
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val prefs by lazy { applicationContext.getSharedPreferences("abstra_pro", Context.MODE_PRIVATE) }
     private val CHANNEL_ID = "abstra_pro_playback_channel"
     private val NOTIFICATION_ID = 1001
+    private var progressTickerJob: Job? = null
+    private var hasPostedFirstNotification = false
 
     companion object {
         const val ACTION_PLAY = "dev.abstra.pro.ACTION_PLAY"
         const val ACTION_PAUSE = "dev.abstra.pro.ACTION_PAUSE"
         const val ACTION_NEXT = "dev.abstra.pro.ACTION_NEXT"
         const val ACTION_PREVIOUS = "dev.abstra.pro.ACTION_PREVIOUS"
+        const val ACTION_STOP = "dev.abstra.pro.ACTION_STOP"
+        const val ACTION_VOLUME = "dev.abstra.pro.ACTION_VOLUME"
+        const val ACTION_SEEK = "dev.abstra.pro.ACTION_SEEK"
         const val ACTION_UPDATE_WIDGET = "dev.abstra.pro.ACTION_UPDATE_WIDGET"
 
-        @Volatile
-        var instance: MusicPlaybackService? = null
+        @Volatile var instance: MusicPlaybackService? = null
             private set
+
+        /**
+         * Global accessor for the singleton AudioEngine owned by the running service.
+         * Returns null until the service has been started and onCreate has run.
+         */
+        val audioEngine: AudioEngine?
+            get() = instance?.audioEngine
     }
 
     override fun onCreate() {
         super.onCreate()
         instance = this
         audioEngine = AudioEngine(this)
+        
+        // Apply any persisted toggle values to the engine immediately.
+        val bg = prefs.getBoolean("background_playback", true)
+        val share = prefs.getBoolean("share_audio_focus", false)
+        audioEngine.setBackgroundPlaybackEnabled(bg)
+        audioEngine.setShareAudioFocusEnabled(share)
 
         createNotificationChannel()
+        buildMediaSession()
 
+        // Defer first notification — gives MediaSession time to publish metadata.
+        serviceScope.launch {
+            delay(300)
+            updateNotification()
+        }
+
+        serviceScope.launch {
+            _availableRoutes.value = listOf(AvailableRoute("default", "System Default", true))
+        }
+        serviceScope.launch {
+            audioEngine.currentSong.collect { 
+                updateNotification()
+                broadcastWidgetUpdate()
+                invalidatePlayerState?.invoke()
+            }
+        }
+        serviceScope.launch {
+            audioEngine.isPlaying.collect { 
+                updateNotification()
+                broadcastWidgetUpdate()
+                invalidatePlayerState?.invoke()
+            }
+        }
+        startProgressTicker()
+    }
+
+    private fun buildMediaSession() {
         val openIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
         }
@@ -68,48 +124,38 @@ class MusicPlaybackService : MediaSessionService() {
             this, 0, openIntent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-
-        // Build MediaSession
         try {
-            val sessionCallback = object : MediaSession.Callback {
-                override fun onAddMediaItems(
-                    mediaSession: MediaSession,
-                    controller: MediaSession.ControllerInfo,
-                    mediaItems: MutableList<MediaItem>
-                ): ListenableFuture<MutableList<MediaItem>> {
-                    return com.google.common.util.concurrent.Futures.immediateFuture(mediaItems)
-                }
-            }
-
-            // Simple media session wrapper
             mediaSession = MediaSession.Builder(this, createPlayerAdapter())
                 .setSessionActivity(pendingIntent)
-                .setCallback(sessionCallback)
+                .setCallback(object : MediaSession.Callback {
+                    override fun onAddMediaItems(
+                        session: MediaSession,
+                        controller: MediaSession.ControllerInfo,
+                        mediaItems: MutableList<MediaItem>
+                    ): ListenableFuture<MutableList<MediaItem>> =
+                        Futures.immediateFuture(mediaItems)
+
+                    override fun onConnect(
+                        session: MediaSession,
+                        controller: MediaSession.ControllerInfo
+                    ): MediaSession.ConnectionResult {
+                        // A system controller (Quick Settings tile, lock screen, etc.)
+                        // just bound. The session token is now non-null — re-post the
+                        // notification so the system picks up our metadata.
+                        serviceScope.launch {
+                            delay(150)
+                            updateNotification()
+                        }
+                        return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                            .setAvailablePlayerCommands(
+                                MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS
+                            )
+                            .build()
+                    }
+                })
                 .build()
         } catch (e: Exception) {
             e.printStackTrace()
-        }
-
-        // Media3 doesn't have media3.session.MediaRouter.Builder natively here.
-        // Stubbing out to fix compile error from provided snippet.
-        serviceScope.launch {
-            _availableRoutes.value = listOf(
-                AvailableRoute("default", "System Default", true)
-            )
-        }
-
-        serviceScope.launch {
-            audioEngine.currentSong.collect {
-                updateNotification()
-                broadcastWidgetUpdate()
-            }
-        }
-
-        serviceScope.launch {
-            audioEngine.isPlaying.collect { isPlaying ->
-                updateNotification()
-                broadcastWidgetUpdate()
-            }
         }
     }
 
@@ -119,62 +165,90 @@ class MusicPlaybackService : MediaSessionService() {
             ACTION_PAUSE -> audioEngine.pause()
             ACTION_NEXT -> audioEngine.playNext()
             ACTION_PREVIOUS -> audioEngine.playPrevious()
+            ACTION_STOP -> {
+                audioEngine.pause()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+                return START_NOT_STICKY
+            }
             ACTION_UPDATE_WIDGET -> broadcastWidgetUpdate()
         }
-        // Always call updateNotification so startForeground is called to satisfy startForegroundService constraints
         updateNotification()
         return super.onStartCommand(intent, flags, startId)
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
-        return mediaSession
-    }
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
-    private fun createPlayerAdapter(): androidx.media3.common.SimpleBasePlayer {
-        return object : androidx.media3.common.SimpleBasePlayer(android.os.Looper.getMainLooper()) {
+    /**
+     * Player adapter that mirrors AudioEngine state into Media3's player contract,
+     * so the system Quick Settings tile reads our metadata and dispatches commands.
+     */
+    private fun createPlayerAdapter(): SimpleBasePlayer {
+        return object : SimpleBasePlayer(android.os.Looper.getMainLooper()) {
+            init {
+                invalidatePlayerState = { invalidateState() }
+            }
+
             override fun getState(): State {
                 val song = audioEngine.currentSong.value
                 val isPlaying = audioEngine.isPlaying.value
+                val duration = audioEngine.duration.value.coerceAtLeast(1L)
+                val position = audioEngine.currentPosition.value.coerceIn(0L, duration)
 
-                val availableCmds = Player.Commands.Builder()
+                val cmds = Player.Commands.Builder()
                     .addAll(
                         Player.COMMAND_PLAY_PAUSE,
                         Player.COMMAND_SEEK_TO_NEXT,
                         Player.COMMAND_SEEK_TO_PREVIOUS,
-                        Player.COMMAND_SEEK_TO_DEFAULT_POSITION
+                        Player.COMMAND_SET_MEDIA_ITEM,
+                        Player.COMMAND_SET_VOLUME,
+                        Player.COMMAND_STOP
                     ).build()
 
-                val b = State.Builder()
-                    .setAvailableCommands(availableCmds)
+                val builder = State.Builder()
+                    .setAvailableCommands(cmds)
                     .setPlayWhenReady(isPlaying, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
                     .setPlaybackState(if (song != null) Player.STATE_READY else Player.STATE_IDLE)
+                    .setVolume(audioEngine.currentVolume.value)
 
                 if (song != null) {
-                    val mediaItem = MediaItem.Builder()
-                        .setMediaId(song.id)
-                        .setMediaMetadata(
-                            MediaMetadata.Builder()
-                                .setTitle(song.title)
-                                .setArtist(song.artist)
-                                .setAlbumTitle(song.album)
-                                .build()
+                    val metadata = MediaMetadata.Builder()
+                        .setTitle(song.title)
+                        .setArtist(song.artist)
+                        .setAlbumTitle(song.album)
+                        .setIsPlayable(true)
+                        .setIsBrowsable(false)
+                        .setArtworkUri(
+                            song.uriString.takeIf { it.isNotBlank() }?.let { Uri.parse(it) }
                         )
                         .build()
 
-                    val itemData = MediaItemData.Builder(song.id)
-                        .setMediaItem(mediaItem)
-                        .setDurationUs(song.durationMs * 1000L)
+                    // The metadata is set on the MediaItem itself.
+                    // builder.setMediaMetadata(metadata) // REMOVED: Unresolved reference
+
+                    val mediaItem = MediaItem.Builder()
+                        .setMediaId(song.id)
+                        .setMediaMetadata(metadata)
+                        .setUri(song.uriString.takeIf { it.isNotBlank() }?.let { Uri.parse(it) })
                         .build()
 
-                    b.setPlaylist(listOf(itemData))
-                    b.setContentPositionMs(PositionSupplier { audioEngine.currentPosition.value })
+                    builder.setPlaylist(
+                        listOf(
+                            MediaItemData.Builder(song.id)
+                                .setMediaItem(mediaItem)
+                                .setDurationUs(song.durationMs * 1000L)
+                                .build()
+                        )
+                    )
+                    builder.setContentPositionMs(PositionSupplier { audioEngine.currentPosition.value })
                 }
-                return b.build()
+
+                return builder.build()
             }
 
             override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
                 if (playWhenReady) audioEngine.resume() else audioEngine.pause()
-                return com.google.common.util.concurrent.Futures.immediateVoidFuture()
+                return Futures.immediateVoidFuture()
             }
 
             override fun handleSeek(mediaItemIndex: Int, positionMs: Long, seekCommand: Int): ListenableFuture<*> {
@@ -183,7 +257,19 @@ class MusicPlaybackService : MediaSessionService() {
                     Player.COMMAND_SEEK_TO_PREVIOUS -> audioEngine.playPrevious()
                     else -> if (positionMs >= 0) audioEngine.seekTo(positionMs)
                 }
-                return com.google.common.util.concurrent.Futures.immediateVoidFuture()
+                return Futures.immediateVoidFuture()
+            }
+
+            override fun handleSetVolume(volume: Float): ListenableFuture<*> {
+                audioEngine.setVolume(volume.coerceIn(0f, 1f))
+                return Futures.immediateVoidFuture()
+            }
+
+            override fun handleStop(): ListenableFuture<*> {
+                audioEngine.pause()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+                return Futures.immediateVoidFuture()
             }
         }
     }
@@ -195,115 +281,180 @@ class MusicPlaybackService : MediaSessionService() {
                 "Playback Controls",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Playback controls and active track details"
+                description = "Custom media controls for the current track"
                 setShowBadge(false)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
     }
-
-
 
     private fun updateNotification() {
         val song = audioEngine.currentSong.value
         val isPlaying = audioEngine.isPlaying.value
+        val duration = audioEngine.duration.value.coerceAtLeast(1L)
+        val position = audioEngine.currentPosition.value.coerceIn(0L, duration)
+        val progress = (position * 1000L / duration).toInt()
 
         val openIntent = PendingIntent.getActivity(
-            this, 0,
-            Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE
+            this, 0, Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
+        val prevIntent = makeServiceIntent(ACTION_PREVIOUS, 1)
+        val playPauseIntent = makeServiceIntent(if (isPlaying) ACTION_PAUSE else ACTION_PLAY, 2)
+        val nextIntent = makeServiceIntent(ACTION_NEXT, 3)
+        val stopIntent = makeServiceIntent(ACTION_STOP, 4)
+        val volumeIntent = makeActivityIntentForVolume(5)
+        val albumArt: Bitmap? = song?.uriString
+            ?.takeIf { it.isNotBlank() && !it.startsWith("demo_") }
+            ?.let { loadAlbumArt(it) }
 
-        val prevIntent = PendingIntent.getService(
-            this, 1,
-            Intent(this, MusicPlaybackService::class.java).apply { action = ACTION_PREVIOUS },
-            PendingIntent.FLAG_IMMUTABLE
-        )
+        val expanded = RemoteViews(packageName, R.layout.notification_media_panel).apply {
+            setTextViewText(R.id.title, song?.title ?: "Abstra Pro")
+            setTextViewText(R.id.artist, song?.artist ?: "Unknown Artist")
+            setTextViewText(R.id.album, song?.album ?: "")
+            setTextViewText(R.id.position, formatMs(position))
+            setTextViewText(R.id.duration, formatMs(duration))
+            setProgressBar(R.id.progress, 1000, progress, false)
+            if (albumArt != null) setImageViewBitmap(R.id.album_art, albumArt)
+            setImageViewResource(
+                R.id.play_pause,
+                if (isPlaying) R.drawable.ic_notify_pause else R.drawable.ic_notify_play
+            )
+            setOnClickPendingIntent(R.id.prev, prevIntent)
+            setOnClickPendingIntent(R.id.play_pause, playPauseIntent)
+            setOnClickPendingIntent(R.id.next, nextIntent)
+            setOnClickPendingIntent(R.id.close, stopIntent)
+            setOnClickPendingIntent(R.id.volume, volumeIntent)
+        }
 
-        val playPauseIntent = PendingIntent.getService(
-            this, 2,
-            Intent(this, MusicPlaybackService::class.java).apply {
-                action = if (isPlaying) ACTION_PAUSE else ACTION_PLAY
-            },
-            PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val nextIntent = PendingIntent.getService(
-            this, 3,
-            Intent(this, MusicPlaybackService::class.java).apply { action = ACTION_NEXT },
-            PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val albumArtBitmap = loadAlbumArt(song?.uriString)
+        val compact = RemoteViews(packageName, R.layout.notification_media_panel).apply {
+            setTextViewText(R.id.title, song?.title ?: "Abstra Pro")
+            setTextViewText(R.id.artist, song?.artist ?: "")
+            setImageViewResource(
+                R.id.play_pause,
+                if (isPlaying) R.drawable.ic_notify_pause else R.drawable.ic_notify_play
+            )
+            setProgressBar(R.id.progress, 1000, progress, false)
+            setOnClickPendingIntent(R.id.play_pause, playPauseIntent)
+            setOnClickPendingIntent(R.id.prev, prevIntent)
+            setOnClickPendingIntent(R.id.next, nextIntent)
+            setTextViewText(R.id.duration, formatMs(duration))
+        }
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(song?.title ?: "Abstra Pro")
-            .setContentText(song?.artist ?: "No track playing")
+            .setContentText(song?.artist ?: "")
             .setSubText(song?.album)
-            .setLargeIcon(albumArtBitmap)
+            .setLargeIcon(albumArt)
             .setContentIntent(openIntent)
             .setOngoing(isPlaying)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .addAction(R.drawable.ic_skip_previous, "Previous", prevIntent)
+            .setShowWhen(false)
+            .setOnlyAlertOnce(true)
+            .addAction(R.drawable.ic_notify_skip_prev, "Previous", prevIntent)
             .addAction(
-                if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow,
+                if (isPlaying) R.drawable.ic_notify_pause else R.drawable.ic_notify_play,
                 if (isPlaying) "Pause" else "Play",
                 playPauseIntent
             )
-            .addAction(R.drawable.ic_skip_next, "Next", nextIntent)
+            .addAction(R.drawable.ic_notify_skip_next, "Next", nextIntent)
+            .addAction(R.drawable.ic_notify_close, "Stop", stopIntent)
             .setStyle(
                 androidx.media.app.NotificationCompat.MediaStyle()
                     .setShowActionsInCompactView(0, 1, 2)
+                    .setShowCancelButton(true)
+                    .setCancelButtonIntent(stopIntent)
                     .setMediaSession(mediaSession?.sessionCompatToken)
             )
+            .setCustomBigContentView(expanded)
+            .setCustomContentView(compact)
 
-        val notification = builder.build()
-        startForeground(NOTIFICATION_ID, notification)
+        try {
+            startForeground(NOTIFICATION_ID, builder.build())
+            hasPostedFirstNotification = true
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun makeServiceIntent(action: String, requestCode: Int): PendingIntent {
+        return PendingIntent.getService(
+            this, requestCode,
+            Intent(this, MusicPlaybackService::class.java).apply { this.action = action },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+    }
+
+    private fun makeActivityIntentForVolume(requestCode: Int): PendingIntent {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+            putExtra("open_volume", true)
+        }
+        return PendingIntent.getActivity(
+            this, requestCode, intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+    }
+
+    private fun startProgressTicker() {
+        progressTickerJob?.cancel()
+        progressTickerJob = serviceScope.launch {
+            while (true) {
+                delay(500L)
+                if (audioEngine.isPlaying.value) updateNotification()
+            }
+        }
+    }
+
+    private fun formatMs(ms: Long): String {
+        val totalSec = (ms / 1000).coerceAtLeast(0)
+        val m = totalSec / 60
+        val s = totalSec % 60
+        return String.format("%d:%02d", m, s)
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        val bg = prefs.getBoolean("background_playback", true)
         val song = audioEngine.currentSong.value
         val isPlaying = audioEngine.isPlaying.value
-        if (song != null && isPlaying) {
+        if (bg && song != null && isPlaying) {
+            // Keep the service alive; the user just swiped from recents.
+            return
+        }
+        if (!isPlaying) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
             return
         }
         super.onTaskRemoved(rootIntent)
-        stopSelf()
     }
 
-    private fun loadAlbumArt(uriString: String?): Bitmap? {
-        if (uriString.isNullOrBlank() || uriString.startsWith("demo_")) return null
-        return try {
-            val retriever = MediaMetadataRetriever()
-            retriever.setDataSource(this, Uri.parse(uriString))
-            val art = retriever.embeddedPicture
-            retriever.release()
-            if (art != null) {
-                val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = 4 }
-                val bmp = android.graphics.BitmapFactory.decodeByteArray(art, 0, art.size, opts) ?: return null
-                android.graphics.Bitmap.createScaledBitmap(bmp, 256, 256, true)
-            } else null
-        } catch (_: Exception) {
-            null
-        }
-    }
+    private fun loadAlbumArt(uriString: String): Bitmap? = try {
+        val retriever = MediaMetadataRetriever()
+        retriever.setDataSource(this, Uri.parse(uriString))
+        val art = retriever.embeddedPicture
+        retriever.release()
+        if (art != null) {
+            val opts = BitmapFactory.Options().apply { inSampleSize = 4 }
+            val bmp = BitmapFactory.decodeByteArray(art, 0, art.size, opts) ?: return null
+            Bitmap.createScaledBitmap(bmp, 256, 256, true)
+        } else null
+    } catch (_: Exception) { null }
 
     private fun broadcastWidgetUpdate() {
-        val intent = Intent("dev.abstra.pro.WIDGET_UPDATE")
-        sendBroadcast(intent)
+        sendBroadcast(Intent("dev.abstra.pro.WIDGET_UPDATE"))
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        progressTickerJob?.cancel()
         instance = null
         mediaSession?.release()
         audioEngine.release()
         serviceScope.cancel()
     }
 
-    fun selectRoute(id: String) {
-        // Stubbed
-    }
+    fun selectRoute(id: String) { /* reserved for future MediaRouter integration */ }
 }

@@ -658,6 +658,13 @@ drawable ic_call_decline_low
 drawable ic_headphones
 drawable ic_launcher_background
 drawable ic_launcher_foreground
+drawable ic_notification
+drawable ic_notify_close
+drawable ic_notify_pause
+drawable ic_notify_play
+drawable ic_notify_skip_next
+drawable ic_notify_skip_prev
+drawable ic_notify_volume
 drawable ic_pause
 drawable ic_play_arrow
 drawable ic_skip_next
@@ -819,9 +826,12 @@ id action_text
 id actions
 id activity_chooser_view_content
 id add
+id album
+id album_art
 id alertTitle
 id always
 id androidx_compose_ui_view_composition_context
+id artist
 id async
 id beginning
 id blocking
@@ -832,6 +842,7 @@ id center_vertical
 id checkbox
 id checked
 id chronometer
+id close
 id coil_request_manager
 id collapseActionView
 id compose_view_saveable_id_tag
@@ -845,6 +856,7 @@ id decor_content_parent
 id default_activity_button
 id dialog_button
 id disableHome
+id duration
 id edit_query
 id edit_text_id
 id end
@@ -878,6 +890,7 @@ id middle
 id multiply
 id nav_controller_view_tag
 id never
+id next
 id none
 id normal
 id notification_background
@@ -886,7 +899,11 @@ id notification_main_column_container
 id off
 id on
 id parentPanel
+id play_pause
 id pooling_container_listener_holder_tag
+id position
+id prev
+id progress
 id progress_circular
 id progress_horizontal
 id radio
@@ -956,6 +973,7 @@ id view_tree_on_back_pressed_dispatcher_owner
 id view_tree_saved_state_registry_owner
 id view_tree_view_model_store_owner
 id visible_removing_fragment_view_tag
+id volume
 id widget_artist
 id widget_blur_bg
 id widget_controls_row
@@ -1029,6 +1047,7 @@ layout notification_action
 layout notification_action_tombstone
 layout notification_media_action
 layout notification_media_cancel_action
+layout notification_media_panel
 layout notification_template_big_media
 layout notification_template_big_media_custom
 layout notification_template_big_media_narrow

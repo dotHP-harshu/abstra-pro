@@ -32,8 +32,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val context: Context = application.applicationContext
     val database = AppDatabase.getInstance(context)
     val repository = MusicRepository(context, database)
-    val audioEngine = AudioEngine(context)
     val aiEngine = AbstraAiEngine(context, database)
+
+    /**
+     * AudioEngine is owned by MusicPlaybackService. The viewmodel reads through
+     * this singleton accessor — null until the service has been started.
+     */
+    private val engine: AudioEngine?
+        get() = dev.abstra.pro.service.MusicPlaybackService.audioEngine
 
     private val prefs = context.getSharedPreferences("abstra_prefs", Context.MODE_PRIVATE)
 
@@ -104,23 +110,58 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         rescanLibrary()
     }
 
+    private val _backgroundPlayback = MutableStateFlow(
+        prefs.getBoolean("background_playback", true)        // default ON — the Lune-style default
+    )
+    val backgroundPlayback: StateFlow<Boolean> = _backgroundPlayback.asStateFlow()
+
+    fun setBackgroundPlayback(enabled: Boolean) {
+        // commit() not apply() — onTaskRemoved in the service reads this prefs
+        // value synchronously when the user swipes from recents.
+        prefs.edit().putBoolean("background_playback", enabled).commit()
+        _backgroundPlayback.value = enabled
+        // No engine call needed — the service reads prefs directly in onTaskRemoved.
+    }
+
+    private val _shareAudioFocus = MutableStateFlow(
+        prefs.getBoolean("share_audio_focus", false)         // default OFF — exclusive playback
+    )
+    val shareAudioFocus: StateFlow<Boolean> = _shareAudioFocus.asStateFlow()
+
+    fun setShareAudioFocus(enabled: Boolean) {
+        prefs.edit().putBoolean("share_audio_focus", enabled).commit()
+        _shareAudioFocus.value = enabled
+        // Apply the new focus policy on the live engine.
+        engine?.applyFocusPolicy()
+    }
+
     // ── Audio Engine StateFlows Exposed to UI ──
-    val currentSong: StateFlow<Song?> = kotlinx.coroutines.flow.combine(audioEngine.currentSong, repository.allSongs) { current, all ->
-        if (current == null) null
-        else all.find { it.id == current.id } ?: current
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-    val pendingSong: StateFlow<Song?> = audioEngine.pendingSong
-    val isPlaying: StateFlow<Boolean> = audioEngine.isPlaying
-    val currentPosition: StateFlow<Long> = audioEngine.currentPosition
-    val duration: StateFlow<Long> = audioEngine.duration
-    val queue: StateFlow<List<Song>> = audioEngine.queue
-    val currentIndex: StateFlow<Int> = audioEngine.currentIndex
-    val repeatMode: StateFlow<RepeatMode> = audioEngine.repeatMode
-    val isShuffle: StateFlow<Boolean> = audioEngine.isShuffle
-    val playbackSpeed: StateFlow<Float> = audioEngine.playbackSpeed
-    val crossfadeSeconds: StateFlow<Int> = audioEngine.crossfadeSeconds
-    val gaplessEnabled: StateFlow<Boolean> = audioEngine.gaplessEnabled
-    val sleepTimerRemainingSec: StateFlow<Int> = audioEngine.sleepTimerSecondsRemaining
+    private val _currentSong = MutableStateFlow<Song?>(null)
+    val currentSong: StateFlow<Song?> = _currentSong.asStateFlow()
+    private val _pendingSong = MutableStateFlow<Song?>(null)
+    val pendingSong: StateFlow<Song?> = _pendingSong.asStateFlow()
+    private val _isPlaying = MutableStateFlow(false)
+    val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
+    private val _currentPosition = MutableStateFlow(0L)
+    val currentPosition: StateFlow<Long> = _currentPosition.asStateFlow()
+    private val _duration = MutableStateFlow(0L)
+    val duration: StateFlow<Long> = _duration.asStateFlow()
+    private val _queue = MutableStateFlow<List<Song>>(emptyList())
+    val queue: StateFlow<List<Song>> = _queue.asStateFlow()
+    private val _currentIndex = MutableStateFlow(0)
+    val currentIndex: StateFlow<Int> = _currentIndex.asStateFlow()
+    private val _repeatMode = MutableStateFlow(RepeatMode.REPEAT_ALL)
+    val repeatMode: StateFlow<RepeatMode> = _repeatMode.asStateFlow()
+    private val _isShuffle = MutableStateFlow(false)
+    val isShuffle: StateFlow<Boolean> = _isShuffle.asStateFlow()
+    private val _playbackSpeed = MutableStateFlow(1f)
+    val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
+    private val _crossfadeSeconds = MutableStateFlow(0)
+    val crossfadeSeconds: StateFlow<Int> = _crossfadeSeconds.asStateFlow()
+    private val _gaplessEnabled = MutableStateFlow(true)
+    val gaplessEnabled: StateFlow<Boolean> = _gaplessEnabled.asStateFlow()
+    private val _sleepTimerSecondsRemaining = MutableStateFlow(0)
+    val sleepTimerRemainingSec: StateFlow<Int> = _sleepTimerSecondsRemaining.asStateFlow()
 
     val availableRoutes: StateFlow<List<dev.abstra.pro.ui.screens.AvailableRoute>> = 
         dev.abstra.pro.service.MusicPlaybackService.instance?.availableRoutes ?: MutableStateFlow(emptyList())
@@ -172,15 +213,39 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _excludedFolderPaths.value = updated
     }
 
+    private val _sortOption = MutableStateFlow(
+        runCatching { dev.abstra.pro.data.model.SongSortOption.valueOf(prefs.getString("sort_option", dev.abstra.pro.data.model.SongSortOption.TITLE_ASC.name)!!) }
+            .getOrDefault(dev.abstra.pro.data.model.SongSortOption.TITLE_ASC)
+    )
+    val sortOption: StateFlow<dev.abstra.pro.data.model.SongSortOption> = _sortOption.asStateFlow()
+
+    fun setSortOption(option: dev.abstra.pro.data.model.SongSortOption) {
+        prefs.edit().putString("sort_option", option.name).apply()
+        _sortOption.value = option
+    }
+
     val visibleSongs: StateFlow<List<Song>> = combine(
         allSongs,
         excludedFolderPaths,
-        minDurationFilterSec
-    ) { songs, excluded, minDurSec ->
+        minDurationFilterSec,
+        sortOption
+    ) { songs, excluded, minDurSec, sortOpt ->
         val minDurMs = minDurSec * 1000L
-        songs.filter { song ->
+        val filtered = songs.filter { song ->
             val parent = java.io.File(song.filePath).parent ?: return@filter true
             parent !in excluded && song.durationMs >= minDurMs
+        }
+        when (sortOpt) {
+            dev.abstra.pro.data.model.SongSortOption.TITLE_ASC -> filtered.sortedBy { it.title.lowercase() }
+            dev.abstra.pro.data.model.SongSortOption.TITLE_DESC -> filtered.sortedByDescending { it.title.lowercase() }
+            dev.abstra.pro.data.model.SongSortOption.ARTIST_ASC -> filtered.sortedBy { it.artist.lowercase() }
+            dev.abstra.pro.data.model.SongSortOption.ARTIST_DESC -> filtered.sortedByDescending { it.artist.lowercase() }
+            dev.abstra.pro.data.model.SongSortOption.ALBUM_ASC -> filtered.sortedBy { it.album.lowercase() }
+            dev.abstra.pro.data.model.SongSortOption.ALBUM_DESC -> filtered.sortedByDescending { it.album.lowercase() }
+            dev.abstra.pro.data.model.SongSortOption.DATE_ADDED_DESC, dev.abstra.pro.data.model.SongSortOption.RECENTLY_ADDED -> filtered.sortedByDescending { it.dateAdded }
+            dev.abstra.pro.data.model.SongSortOption.DATE_ADDED_ASC -> filtered.sortedBy { it.dateAdded }
+            dev.abstra.pro.data.model.SongSortOption.DURATION_DESC -> filtered.sortedByDescending { it.durationMs }
+            dev.abstra.pro.data.model.SongSortOption.DURATION_ASC -> filtered.sortedBy { it.durationMs }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -217,22 +282,51 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _lyricsTimeOffsetMs = MutableStateFlow(0L)
     val lyricsTimeOffsetMs: StateFlow<Long> = _lyricsTimeOffsetMs.asStateFlow()
 
-    init {
-        // Wire telemetry from AudioEngine to AbstraAiEngine
-        audioEngine.onSongStarted = { song ->
-            aiEngine.onSongStarted(song)
-            loadLyricsForSong(song)
-            addToRecentlyPlayed(song.id)
+    private suspend fun waitForEngine(): AudioEngine {
+        while (true) {
+            dev.abstra.pro.service.MusicPlaybackService.audioEngine?.let { return it }
+            kotlinx.coroutines.delay(50)
         }
-        audioEngine.onSongCompleted = { song ->
-            aiEngine.onSongCompleted(song)
-        }
-        audioEngine.onSongSkipped = { song, playedSec, totalSec ->
-            aiEngine.onSongSkipped(song, playedSec, totalSec)
-        }
+    }
 
-        // Init Audio Engine settings from SharedPreferences
-        audioEngine.setCrossfade(prefs.getInt("crossfade_sec", 0))
+    init {
+        viewModelScope.launch {
+            // Wait for the service's engine, then mirror its flows.
+            val e = waitForEngine()
+            
+            // Wire telemetry
+            e.onSongStarted = { song ->
+                aiEngine.onSongStarted(song)
+                loadLyricsForSong(song)
+                addToRecentlyPlayed(song.id)
+            }
+            e.onSongCompleted = { song ->
+                aiEngine.onSongCompleted(song)
+            }
+            e.onSongSkipped = { song, playedSec, totalSec ->
+                aiEngine.onSongSkipped(song, playedSec, totalSec)
+            }
+
+            launch { e.currentSong.collect { current ->
+                if (current == null) _currentSong.value = null
+                else _currentSong.value = allSongs.value.find { it.id == current.id } ?: current
+            } }
+            launch { e.isPlaying.collect { _isPlaying.value = it } }
+            launch { e.currentPosition.collect { _currentPosition.value = it } }
+            launch { e.duration.collect { _duration.value = it } }
+            launch { e.queue.collect { _queue.value = it } }
+            launch { e.currentIndex.collect { _currentIndex.value = it } }
+            launch { e.repeatMode.collect { _repeatMode.value = it } }
+            launch { e.isShuffle.collect { _isShuffle.value = it } }
+            launch { e.playbackSpeed.collect { _playbackSpeed.value = it } }
+            launch { e.crossfadeSeconds.collect { _crossfadeSeconds.value = it } }
+            launch { e.gaplessEnabled.collect { _gaplessEnabled.value = it } }
+            launch { e.sleepTimerSecondsRemaining.collect { _sleepTimerSecondsRemaining.value = it } }
+            launch { e.pendingSong.collect { _pendingSong.value = it } }
+
+            // Init Audio Engine settings from SharedPreferences
+            e.setCrossfade(prefs.getInt("crossfade_sec", 0))
+        }
 
         // Initial scan on boot
         viewModelScope.launch {
@@ -320,88 +414,45 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     // ── Playback Controls ──
     fun playSong(song: Song) {
-        if (currentSong.value?.id == song.id) {
+        val e = engine ?: return
+        if (e.currentSong.value?.id == song.id) {
             togglePlayPause()
             return
         }
         val currentList = allSongs.value
         val index = currentList.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
-        audioEngine.setQueue(currentList, index, autoPlay = true)
+        e.setQueue(currentList, index, autoPlay = true)
     }
 
     fun playQueue(songs: List<Song>, startIndex: Int = 0) {
-        audioEngine.setQueue(songs, startIndex, autoPlay = true)
+        engine?.setQueue(songs, startIndex, autoPlay = true)
     }
 
     fun shuffleQueue(songs: List<Song>) {
         if (songs.isEmpty()) return
-        val shuffled = songs.shuffled()
-        audioEngine.setQueue(shuffled, 0, autoPlay = true)
+        val e = engine ?: return
+        e.setQueue(songs.shuffled(), 0, autoPlay = true)
     }
 
-    fun playNext(song: Song) {
-        audioEngine.enqueueNext(song)
-    }
-
-    fun addToQueue(song: Song) {
-        audioEngine.enqueueLast(song)
-    }
-
-    fun removeQueueItem(song: Song) {
-        audioEngine.removeQueueItem(song)
-    }
-
-    fun moveQueueItem(from: Int, to: Int) {
-        audioEngine.moveQueueItem(from, to)
-    }
-
-    fun clearQueue() {
-        audioEngine.clearUpNext()
-    }
+    fun playNext(song: Song) = engine?.enqueueNext(song)
+    fun addToQueue(song: Song) = engine?.enqueueLast(song)
+    fun removeQueueItem(song: Song) = engine?.removeQueueItem(song)
+    fun moveQueueItem(from: Int, to: Int) = engine?.moveQueueItem(from, to)
+    fun clearQueue() = engine?.clearUpNext()
 
     fun togglePlayPause() {
-        if (isPlaying.value) {
-            audioEngine.pause()
-        } else {
-            audioEngine.resume()
-        }
+        val e = engine ?: return
+        if (e.isPlaying.value) e.pause() else e.resume()
     }
-
-    fun skipNext() {
-        audioEngine.playNext()
-    }
-
-    fun skipPrevious() {
-        audioEngine.playPrevious()
-    }
-
-    fun seekTo(positionMs: Long) {
-        audioEngine.seekTo(positionMs)
-    }
-
-    fun toggleShuffle() {
-        audioEngine.toggleShuffle()
-    }
-
-    fun toggleRepeat() {
-        audioEngine.toggleRepeatMode()
-    }
-
-    fun setPlaybackSpeed(speed: Float) {
-        audioEngine.setPlaybackSpeed(speed)
-    }
-
-    fun setSleepTimer(minutes: Int) {
-        audioEngine.setSleepTimer(minutes)
-    }
-
-    fun setCrossfade(seconds: Int) {
-        audioEngine.setCrossfade(seconds)
-    }
-
-    fun setGapless(enabled: Boolean) {
-        audioEngine.setGapless(enabled)
-    }
+    fun skipNext() = engine?.playNext()
+    fun skipPrevious() = engine?.playPrevious()
+    fun seekTo(positionMs: Long) = engine?.seekTo(positionMs)
+    fun toggleShuffle() = engine?.toggleShuffle()
+    fun toggleRepeat() = engine?.toggleRepeatMode()
+    fun setPlaybackSpeed(speed: Float) = engine?.setPlaybackSpeed(speed)
+    fun setSleepTimer(minutes: Int) = engine?.setSleepTimer(minutes)
+    fun setCrossfade(seconds: Int) = engine?.setCrossfade(seconds)
+    fun setGapless(enabled: Boolean) = engine?.setGapless(enabled)
 
     private val _playlistPickerForSong = MutableStateFlow<Song?>(null)
     val playlistPickerForSong: StateFlow<Song?> = _playlistPickerForSong.asStateFlow()
@@ -410,17 +461,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun closePlaylistPicker() { _playlistPickerForSong.value = null }
 
     // ── Library & Playlist Operations ──
-    private val _sortOption = MutableStateFlow(
-        runCatching { dev.abstra.pro.data.model.SongSortOption.valueOf(prefs.getString("sort_option", dev.abstra.pro.data.model.SongSortOption.TITLE_ASC.name)!!) }
-            .getOrDefault(dev.abstra.pro.data.model.SongSortOption.TITLE_ASC)
-    )
-    val sortOption: StateFlow<dev.abstra.pro.data.model.SongSortOption> = _sortOption.asStateFlow()
-
-    fun setSortOption(option: dev.abstra.pro.data.model.SongSortOption) {
-        prefs.edit().putString("sort_option", option.name).apply()
-        _sortOption.value = option
-    }
-
     fun toggleFavorite(song: Song) {
         viewModelScope.launch {
             repository.toggleFavorite(song.id, song.isFavorite)
@@ -594,12 +634,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun persistNowPlaying() {
-        val song = audioEngine.currentSong.value ?: return
+        val e = engine ?: return
+        val song = e.currentSong.value ?: return
         prefs.edit()
             .putString("last_song_id", song.id)
-            .putLong("last_position_ms", audioEngine.currentPosition.value)
-            .putString("last_queue_json", Gson().toJson(audioEngine.queue.value))
-            .apply()
+            .putLong("last_position_ms", e.currentPosition.value)
+            .putString("last_queue_json", Gson().toJson(e.queue.value))
+            .commit()
     }
 
 
@@ -614,6 +655,5 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         super.onCleared()
         persistNowPlaying()
-        audioEngine.release()
     }
 }
