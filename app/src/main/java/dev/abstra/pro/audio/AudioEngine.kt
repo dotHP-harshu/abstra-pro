@@ -622,27 +622,45 @@ class AudioEngine(private val context: Context) {
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focus ->
         when (focus) {
             AudioManager.AUDIOFOCUS_GAIN -> {
+                // We got focus back. Restore volume and resume if user wanted playback.
                 try { mediaPlayer?.setVolume(1.0f, 1.0f) } catch (_: Exception) {}
+                proceduralSynth.setVolume(1.0f)
                 if (_shouldBePlaying) resume()
             }
-            AudioManager.AUDIOFOCUS_LOSS -> {
-                // If sharing audio focus is enabled, ignore loss so other apps can continue.
-                if (!_shareAudioFocusEnabled.value) {
-                    pause()
-                }
-            }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                if (!_shareAudioFocusEnabled.value) {
-                    pause()
-                    _shouldBePlaying = true // remember intent so we resume on gain
-                } else {
-                    // When sharing, simply lower volume briefly then continue.
-                    try { mediaPlayer?.setVolume(0.2f, 0.2f) } catch (_: Exception) {}
-                }
-            }
+
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                // Lower volume to 20% but keep playing.
+                // Another app wants us to duck (e.g., notification, voice message).
+                // Always honor this — ducking is cheap and non-disruptive.
                 try { mediaPlayer?.setVolume(0.2f, 0.2f) } catch (_: Exception) {}
+                proceduralSynth.setVolume(0.2f)
+            }
+
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                // Another app wants temporary exclusive focus (e.g., phone call, voice note).
+                if (_shareAudioFocusEnabled.value) {
+                    // User wants us to share: duck instead of pausing.
+                    try { mediaPlayer?.setVolume(0.2f, 0.2f) } catch (_: Exception) {}
+                    proceduralSynth.setVolume(0.2f)
+                } else {
+                    // Default: pause and remember intent to resume.
+                    pause()
+                    _shouldBePlaying = true
+                }
+            }
+
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                // Another app wants permanent exclusive focus (e.g., YouTube, Spotify).
+                if (_shareAudioFocusEnabled.value) {
+                    // User wants us to share: ignore and keep playing.
+                    // Both streams mix; user hears both. Set our volume to half so
+                    // the user can still hear YouTube clearly.
+                    try { mediaPlayer?.setVolume(0.5f, 0.5f) } catch (_: Exception) {}
+                    proceduralSynth.setVolume(0.5f)
+                } else {
+                    // Default: pause.
+                    pause()
+                    _shouldBePlaying = false
+                }
             }
         }
     }
@@ -650,13 +668,10 @@ class AudioEngine(private val context: Context) {
     @Volatile private var _shouldBePlaying = false
 
     private fun requestAudioFocus(): Boolean {
-        // When sharing audio focus, we request transient focus that allows other apps to keep playing.
-        // If sharing is OFF, we request full focus.
-        val focusGain = if (_shareAudioFocusEnabled.value) {
-            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
-        } else {
-            AudioManager.AUDIOFOCUS_GAIN
-        }
+        // Music apps always request AUDIOFOCUS_GAIN (exclusive). The share setting
+        // doesn't change what we ASK for — it changes how we RESPOND when another
+        // app asks for focus and the system takes it from us.
+        val focusGain = AudioManager.AUDIOFOCUS_GAIN
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             audioFocusRequest = AudioFocusRequest.Builder(focusGain)
                 .setAudioAttributes(
@@ -666,7 +681,8 @@ class AudioEngine(private val context: Context) {
                         .build()
                 )
                 .setOnAudioFocusChangeListener(audioFocusChangeListener)
-                .setWillPauseWhenDucked(false)
+                .setWillPauseWhenDucked(false)        // we'll duck ourselves in the listener
+                .setAcceptsDelayedFocusGain(true)     // queue focus request if other app is active
                 .build()
             audioManager.requestAudioFocus(audioFocusRequest!!) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         } else {

@@ -131,8 +131,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun setShareAudioFocus(enabled: Boolean) {
         prefs.edit().putBoolean("share_audio_focus", enabled).commit()
         _shareAudioFocus.value = enabled
-        // Apply the new focus policy on the live engine.
-        engine?.applyFocusPolicy()
+        // Tell the engine to update its internal focus policy and re-acquire focus.
+        engine?.setShareAudioFocusEnabled(enabled)
     }
 
     // ── Audio Engine StateFlows Exposed to UI ──
