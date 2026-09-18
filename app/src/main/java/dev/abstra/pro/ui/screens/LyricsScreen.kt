@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -319,9 +320,30 @@ fun LyricsScreen(
                             .padding(vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
+                        val displayText = if (line.words.isNotEmpty() && isActive) {
+                            androidx.compose.ui.text.buildAnnotatedString {
+                                line.words.forEach { word ->
+                                    if (adjustedPosition >= word.timeMs) {
+                                        withStyle(androidx.compose.ui.text.SpanStyle(color = colors.primary)) {
+                                            append(word.text)
+                                        }
+                                    } else {
+                                        withStyle(androidx.compose.ui.text.SpanStyle(color = colors.textPrimary.copy(alpha = 0.5f))) {
+                                            append(word.text)
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            androidx.compose.ui.text.buildAnnotatedString {
+                                withStyle(androidx.compose.ui.text.SpanStyle(color = textColor)) {
+                                    append(line.content)
+                                }
+                            }
+                        }
+
                         Text(
-                            text = line.content,
-                            color = textColor,
+                            text = displayText,
                             fontSize = fontSize,
                             fontWeight = fontWeight,
                             textAlign = TextAlign.Center,

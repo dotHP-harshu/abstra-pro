@@ -17,7 +17,8 @@ data class SongEntity(
     val dateAdded: Long,
     val genre: String?,
     val albumId: Long,
-    val isFavorite: Boolean = false
+    val isFavorite: Boolean = false,
+    val lyrics: String? = null
 )
 
 /** User custom metadata overrides (App-only edit mode) */
@@ -39,6 +40,14 @@ data class PlaylistEntity(
     val name: String,
     val description: String = "",
     val createdAt: Long = System.currentTimeMillis()
+)
+
+data class PlaylistWithCount(
+    val id: Long,
+    val name: String,
+    val description: String,
+    val createdAt: Long,
+    val songCount: Int
 )
 
 /** Playlist song mapping */

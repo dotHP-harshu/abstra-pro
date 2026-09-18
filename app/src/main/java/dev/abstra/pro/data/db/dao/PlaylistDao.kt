@@ -11,6 +11,9 @@ interface PlaylistDao {
     @Query("SELECT * FROM playlists ORDER BY name ASC")
     fun getAllPlaylists(): Flow<List<PlaylistEntity>>
 
+    @Query("SELECT p.id, p.name, p.description, p.createdAt, (SELECT COUNT(songId) FROM playlist_songs WHERE playlistId = p.id) as songCount FROM playlists p ORDER BY p.name ASC")
+    fun getAllPlaylistsWithCount(): Flow<List<dev.abstra.pro.data.db.entities.PlaylistWithCount>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlaylist(playlist: PlaylistEntity): Long
 

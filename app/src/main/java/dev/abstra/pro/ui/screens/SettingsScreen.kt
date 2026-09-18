@@ -127,7 +127,7 @@ fun SettingsScreen(
                             )
                         }
 
-                        Divider(color = colors.border.copy(alpha = 0.5f))
+                        HorizontalDivider(color = colors.border.copy(alpha = 0.5f))
 
                         // Crossfade Duration
                         Column {
@@ -171,7 +171,7 @@ fun SettingsScreen(
                                 colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = colors.primary)
                             )
                         }
-                        Divider(color = colors.border.copy(alpha = 0.5f))
+                        HorizontalDivider(color = colors.border.copy(alpha = 0.5f))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -229,7 +229,7 @@ fun SettingsScreen(
                             }
                         }
 
-                        Divider(color = colors.border.copy(alpha = 0.5f))
+                        HorizontalDivider(color = colors.border.copy(alpha = 0.5f))
 
                         // Physical Tag Writing (Jaudiotagger)
                         Row(
@@ -248,7 +248,7 @@ fun SettingsScreen(
                             )
                         }
 
-                        Divider(color = colors.border.copy(alpha = 0.5f))
+                        HorizontalDivider(color = colors.border.copy(alpha = 0.5f))
 
                         // Rescan MediaStore
                         OutlinedButton(

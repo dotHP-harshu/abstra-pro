@@ -54,12 +54,14 @@ class MusicRepository(
                 genre = ov?.customGenre ?: entity.genre,
                 albumId = entity.albumId,
                 isFavorite = ov?.isFavorite ?: entity.isFavorite,
-                coverUrl = ov?.customCoverUri
+                coverUrl = ov?.customCoverUri,
+                lyrics = entity.lyrics
             )
         }
     }
 
     val playlists: Flow<List<PlaylistEntity>> = playlistDao.getAllPlaylists()
+    val playlistsWithCount: Flow<List<dev.abstra.pro.data.db.entities.PlaylistWithCount>> = playlistDao.getAllPlaylistsWithCount()
     val totalLifetimePlaytime: Flow<Long> = telemetryDao.getTotalLifetimePlaytime().map { it ?: 0L }
     val totalPlayCount: Flow<Int> = telemetryDao.getTotalPlayCount().map { it ?: 0 }
 
@@ -153,7 +155,8 @@ class MusicRepository(
                             dateAdded = dateAdded,
                             genre = null,
                             albumId = albumId,
-                            isFavorite = false
+                            isFavorite = false,
+                            lyrics = null
                         )
                     )
                 }
@@ -259,6 +262,13 @@ class MusicRepository(
 
     suspend fun removeSongFromPlaylist(playlistId: Long, songId: String) = withContext(Dispatchers.IO) {
         playlistDao.removeSongFromPlaylist(playlistId, songId)
+    }
+
+    suspend fun updatePlaylistOrder(playlistId: Long, songIds: List<String>) = withContext(Dispatchers.IO) {
+        val items = songIds.mapIndexed { index, id ->
+            PlaylistSongEntity(playlistId = playlistId, songId = id, sortOrder = index)
+        }
+        playlistDao.insertPlaylistSongs(items)
     }
 
     fun getSongsForPlaylist(playlistId: Long): Flow<List<SongEntity>> =

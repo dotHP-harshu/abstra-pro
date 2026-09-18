@@ -255,15 +255,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _excludedFolderPaths.value = updated
     }
 
-    val playlists: StateFlow<List<Playlist>> = repository.playlists
+    val playlists: StateFlow<List<Playlist>> = repository.playlistsWithCount
         .map { list ->
             list.map { entity ->
-                val songsInPl = repository.getSongsForPlaylistSync(entity.id)
                 Playlist(
                     id = entity.id,
                     name = entity.name,
                     description = entity.description,
-                    songCount = songsInPl.size
+                    songCount = entity.songCount
                 )
             }
         }
@@ -278,6 +277,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private var _lastLyricsSongId = ""
     private val _currentLyrics = MutableStateFlow<List<LyricsLine>>(emptyList())
     val currentLyrics: StateFlow<List<LyricsLine>> = _currentLyrics.asStateFlow()
+
+    private val _lyricsLoadingState = MutableStateFlow(false)
+    val lyricsLoadingState: StateFlow<Boolean> = _lyricsLoadingState.asStateFlow()
 
     private val _lyricsTimeOffsetMs = MutableStateFlow(0L)
     val lyricsTimeOffsetMs: StateFlow<Long> = _lyricsTimeOffsetMs.asStateFlow()
@@ -507,6 +509,25 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         return entityIds.mapNotNull { currentMap[it] }
     }
 
+    fun observePlaylistSongs(playlistId: Long): kotlinx.coroutines.flow.Flow<List<Song>> {
+        return kotlinx.coroutines.flow.combine(repository.getSongsForPlaylist(playlistId), allSongs) { entityList, all ->
+            val allMap = all.associateBy { it.id }
+            entityList.mapNotNull { allMap[it.id] }
+        }
+    }
+
+    fun updatePlaylistOrder(playlistId: Long, songs: List<Song>) {
+        viewModelScope.launch {
+            repository.updatePlaylistOrder(playlistId, songs.map { it.id })
+        }
+    }
+
+    fun removeSongFromPlaylist(playlistId: Long, song: Song) {
+        viewModelScope.launch {
+            repository.removeSongFromPlaylist(playlistId, song.id)
+        }
+    }
+
     // ── Song Deletion ──
     private val _pendingDeleteSong = MutableStateFlow<Song?>(null)
 
@@ -569,45 +590,87 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     // ── Lyrics Management ──
     fun setLyricsOffset(offsetMs: Long) {
         _lyricsTimeOffsetMs.value = offsetMs
+        val active = currentSong.value
+        if (active != null) {
+            viewModelScope.launch(Dispatchers.IO) {
+                val cached = database.libraryDao().getLyrics(active.id)
+                if (cached != null) {
+                    database.libraryDao().saveLyrics(cached.copy(userOffsetMs = offsetMs))
+                } else if (_currentLyrics.value.isNotEmpty()) {
+                    database.libraryDao().saveLyrics(
+                        dev.abstra.pro.data.db.entities.LyricsCacheEntity(
+                            songId = active.id,
+                            rawLrc = "",
+                            userOffsetMs = offsetMs
+                        )
+                    )
+                }
+            }
+        }
     }
 
     private fun loadLyricsForSong(song: Song) {
         viewModelScope.launch(Dispatchers.IO) {
             if (_currentLyrics.value.isNotEmpty() && _lastLyricsSongId == song.id) return@launch
             _lastLyricsSongId = song.id
-            _lyricsTimeOffsetMs.value = 0L
-            _currentLyrics.value = emptyList()
+            _lyricsLoadingState.value = true
+
+            val cached = database.libraryDao().getLyrics(song.id)
+            _lyricsTimeOffsetMs.value = cached?.userOffsetMs ?: 0L
+
+            var parsed: List<LyricsLine>? = null
 
             // 1. Check matching .lrc file in same directory
             if (song.filePath.isNotBlank()) {
-                val baseNoExt = song.filePath.substringBeforeLast('.', missingDelimiterValue = song.filePath)
-                val lrcFile = File("$baseNoExt.lrc")
-                if (lrcFile.exists()) {
-                    val parsed = LyricsParser.parse(lrcFile.readText())
-                    _currentLyrics.value = parsed
-                    return@launch
+                val songFile = File(song.filePath)
+                val baseNoExt = songFile.nameWithoutExtension
+                val dir = songFile.parentFile
+                
+                val possibleLrcs = mutableListOf<File>()
+                if (dir != null) {
+                    possibleLrcs.add(File(dir, "$baseNoExt.lrc"))
+                    possibleLrcs.add(File(dir, "$baseNoExt.LRC"))
+                    dir.listFiles()?.find { it.name.equals("$baseNoExt.lrc", ignoreCase = true) }?.let { possibleLrcs.add(it) }
+                    
+                    val lyricsFolder = File(dir, "Lyrics")
+                    if (lyricsFolder.exists() && lyricsFolder.isDirectory) {
+                        lyricsFolder.listFiles()?.find { it.name.equals("$baseNoExt.lrc", ignoreCase = true) }?.let { possibleLrcs.add(it) }
+                    }
+                }
+                
+                val lrcFile = possibleLrcs.find { it.exists() && it.isFile }
+                if (lrcFile != null) {
+                    parsed = LyricsParser.parse(dev.abstra.pro.lyrics.util.CharsetUtils.readText(lrcFile))
                 }
             }
 
             // 2. Check Room Database lyrics cache
-            val cached = database.libraryDao().getLyrics(song.id)
-            if (cached != null && cached.rawLrc.isNotBlank()) {
-                val parsed = LyricsParser.parse(cached.rawLrc)
-                _currentLyrics.value = parsed
-                return@launch
+            if (parsed.isNullOrEmpty() && cached != null && cached.rawLrc.isNotBlank()) {
+                parsed = LyricsParser.parse(cached.rawLrc)
+            }
+            
+            // 3. Fall back to embedded lyrics from SongEntity (scan-time extracted)
+            if (parsed.isNullOrEmpty() && !song.lyrics.isNullOrBlank()) {
+                parsed = LyricsParser.parse(song.lyrics)
             }
 
-            // 3. Fall back to embedded lyrics tags (USLT / LYRICS) via jaudiotagger
-            if (song.filePath.isNotBlank()) {
+            // 4. Fall back to embedded lyrics tags (USLT / LYRICS) via jaudiotagger
+            if (parsed.isNullOrEmpty() && song.filePath.isNotBlank()) {
                 val embedded = MetadataManager.readEmbeddedLyrics(song.filePath)
                 if (!embedded.isNullOrBlank()) {
-                    _currentLyrics.value = LyricsParser.parse(embedded)
-                    // Cache so the next play is instant (no file re-parse)
+                    parsed = LyricsParser.parse(embedded)
                     database.libraryDao().saveLyrics(
-                        LyricsCacheEntity(songId = song.id, rawLrc = embedded)
+                        dev.abstra.pro.data.db.entities.LyricsCacheEntity(
+                            songId = song.id, 
+                            rawLrc = embedded,
+                            userOffsetMs = _lyricsTimeOffsetMs.value
+                        )
                     )
                 }
             }
+            
+            _currentLyrics.value = parsed ?: emptyList()
+            _lyricsLoadingState.value = false
         }
     }
 
@@ -615,7 +678,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 context.contentResolver.openInputStream(uri)?.use { stream ->
-                    val content = stream.bufferedReader().use { it.readText() }
+                    val content = dev.abstra.pro.lyrics.util.CharsetUtils.decodeBytes(stream.readBytes())
                     val parsed = LyricsParser.parse(content)
                     _currentLyrics.value = parsed
 
@@ -624,7 +687,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                         database.libraryDao().saveLyrics(
                             dev.abstra.pro.data.db.entities.LyricsCacheEntity(
                                 songId = active.id,
-                                rawLrc = content
+                                rawLrc = content,
+                                userOffsetMs = _lyricsTimeOffsetMs.value
                             )
                         )
                     }

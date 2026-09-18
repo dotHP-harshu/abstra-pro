@@ -17,7 +17,8 @@ data class Song(
     val genre: String? = null,
     val albumId: Long = 0L,
     val isFavorite: Boolean = false,
-    val coverUrl: String? = null
+    val coverUrl: String? = null,
+    val lyrics: String? = null
 ) {
     val durationFormatted: String
         get() {

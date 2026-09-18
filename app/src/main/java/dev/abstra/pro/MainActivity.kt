@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -211,6 +212,7 @@ class MainActivity : ComponentActivity() {
 
             AbstraTheme(appTheme = currentTheme) {
                 val colors = LocalAbstraColors.current
+                var selectedPlaylist by remember { mutableStateOf<dev.abstra.pro.data.model.Playlist?>(null) }
 
                 Box(
                     modifier = Modifier
@@ -327,7 +329,7 @@ class MainActivity : ComponentActivity() {
                                         recentlyAddedSongs = visibleSongs.sortedByDescending { it.dateAdded }.take(20),
                                         currentSong = currentSong,
                                         isPlaying = isPlaying,
-                                        onPlaylistClick = { /* open playlist */ },
+                                        onPlaylistClick = { selectedPlaylist = it },
                                         onCreatePlaylistClick = { viewModel.setCreatePlaylistDialogOpen(true) },
                                         onImportPlaylistClick = { importLauncher.launch(arrayOf("application/json")) },
                                         onExportAllClick = { exportLauncher.launch("abstra_pro_backup.json") },
@@ -475,7 +477,24 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+                    // 4.5. Playlist Detail Overlay
+                    selectedPlaylist?.let { playlist ->
+                        dev.abstra.pro.ui.screens.PlaylistDetailScreen(
+                            playlistId = playlist.id,
+                            playlistName = playlist.name,
+                            viewModel = viewModel,
+                            onBack = { selectedPlaylist = null },
+                            onPlaySong = { song, queue -> 
+                                viewModel.playQueue(queue, queue.indexOf(song).coerceAtLeast(0))
+                            },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .zIndex(5f)
+                        )
+                    }
+
                     // 5. Equalizer Overlay Screen
+
                     AnimatedVisibility(
                         visible = isEqualizerOpen,
                         enter = slideInVertically { it } + fadeIn(),

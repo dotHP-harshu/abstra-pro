@@ -4,9 +4,12 @@ import android.media.audiofx.DynamicsProcessing
 import android.os.Build
 import android.util.Log
 
+import android.annotation.SuppressLint
+
 /**
  * Multi-Band Compressor (MBC) and Limiter wrapper using Android DynamicsProcessing.
  */
+@SuppressLint("NewApi")
 class DynamicsEffect {
     private var dynamics: DynamicsProcessing? = null
     private var secondaryDynamics: DynamicsProcessing? = null
@@ -14,32 +17,33 @@ class DynamicsEffect {
         private set
 
     fun setup(sessionId: Int, isSecondary: Boolean, preset: Int) {
+        if (Build.VERSION.SDK_INT < 28) return
         release(isSecondary)
         currentPreset = preset
         if (sessionId == 0) return
 
         try {
             val d = createDynamics(sessionId)
-            if (isSecondary) {
-                secondaryDynamics = d
-            } else {
-                dynamics = d
+            if (d != null) {
+                if (isSecondary) {
+                    secondaryDynamics = d
+                } else {
+                    dynamics = d
+                }
+                applyPreset(d, preset)
             }
-            applyPreset(d, preset)
         } catch (e: Exception) {
             Log.e("DynamicsEffect", "Failed to setup DynamicsProcessing", e)
         }
     }
 
-    private fun createDynamics(sessionId: Int): DynamicsProcessing {
-        return if (Build.VERSION.SDK_INT >= 28) {
+    private fun createDynamics(sessionId: Int): DynamicsProcessing? {
+        if (Build.VERSION.SDK_INT < 28) return null
+        return try {
             val ctor = DynamicsProcessing::class.java.getConstructor(Int::class.java)
-            @Suppress("DEPRECATION")
             ctor.newInstance(sessionId) as DynamicsProcessing
-        } else {
-            val ctor = DynamicsProcessing::class.java.getConstructor(Int::class.java, Int::class.java)
-            @Suppress("DEPRECATION")
-            ctor.newInstance(0, sessionId) as DynamicsProcessing
+        } catch (e: Exception) {
+            null
         }
     }
 
