@@ -41,7 +41,7 @@ fun SongsScreen(
     songs: List<Song>,
     currentSong: Song?,
     isPlaying: Boolean,
-    onSongClick: (Song) -> Unit,
+    onSongClick: (Song, List<Song>) -> Unit,
     onPlayAll: (List<Song>) -> Unit,
     onShuffleAll: (List<Song>) -> Unit,
     onToggleFavorite: (Song) -> Unit,
@@ -50,6 +50,8 @@ fun SongsScreen(
     onAddToPlaylist: (Song) -> Unit,
     onEditMetadata: (Song) -> Unit,
     onDeleteSong: (Song) -> Unit,
+    onBatchDelete: (List<Song>) -> Unit,
+    onBatchAddToPlaylist: (List<Song>) -> Unit,
     onRescanLibrary: () -> Unit,
     sortOption: SongSortOption,
     onSortOptionChange: (SongSortOption) -> Unit,
@@ -63,6 +65,8 @@ fun SongsScreen(
     // Multi-selection state
     var isSelectionMode by remember { mutableStateOf(false) }
     val selectedSongIds = remember { mutableStateListOf<String>() }
+    
+    var showBatchDeleteConfirm by remember { mutableStateOf(false) }
 
     // Bottom sheet state
     var selectedSongForOptions by remember { mutableStateOf<Song?>(null) }
@@ -195,6 +199,22 @@ fun SongsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Select mode toggle
+                        IconButton(
+                            onClick = {
+                                isSelectionMode = !isSelectionMode
+                                if (!isSelectionMode) selectedSongIds.clear()
+                            },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isSelectionMode) Icons.Default.Close else Icons.Default.Checklist,
+                                contentDescription = if (isSelectionMode) "Exit selection" else "Select multiple",
+                                tint = if (isSelectionMode) colors.primary else colors.textSecondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        
                         // Sort Button
                         Box {
                             Surface(
@@ -301,7 +321,9 @@ fun SongsScreen(
                 border = androidx.compose.foundation.BorderStroke(1.dp, colors.primary)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -309,24 +331,63 @@ fun SongsScreen(
                         text = "${selectedSongIds.size} selected",
                         color = colors.primary,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(start = 8.dp)
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = {
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        IconButton(onClick = {
                             selectedSongIds.clear()
                             selectedSongIds.addAll(filteredSongs.map { it.id })
-                        }) {
-                            Text("Select All", color = colors.primary, fontSize = 12.sp)
+                        }, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.SelectAll, contentDescription = "Select all",
+                                tint = colors.primary, modifier = Modifier.size(18.dp))
                         }
-                        TextButton(onClick = {
+                        IconButton(
+                            onClick = { onBatchAddToPlaylist(filteredSongs.filter { it.id in selectedSongIds }) },
+                            enabled = selectedSongIds.isNotEmpty(),
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to playlist",
+                                tint = colors.primary, modifier = Modifier.size(18.dp))
+                        }
+                        IconButton(
+                            onClick = { showBatchDeleteConfirm = true },
+                            enabled = selectedSongIds.isNotEmpty(),
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete",
+                                tint = Color(0xFFFF5252), modifier = Modifier.size(18.dp))
+                        }
+                        IconButton(onClick = {
                             isSelectionMode = false
                             selectedSongIds.clear()
-                        }) {
-                            Text("Cancel", color = colors.textSecondary, fontSize = 12.sp)
+                        }, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = "Cancel",
+                                tint = colors.textSecondary, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
             }
+        }
+        
+        if (showBatchDeleteConfirm) {
+            AlertDialog(
+                onDismissRequest = { showBatchDeleteConfirm = false },
+                title = { Text("Delete ${selectedSongIds.size} songs?") },
+                text = { Text("This will remove the selected songs from your device's library. The audio files themselves are not deleted.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val toDelete = filteredSongs.filter { it.id in selectedSongIds }
+                        onBatchDelete(toDelete)
+                        isSelectionMode = false
+                        selectedSongIds.clear()
+                        showBatchDeleteConfirm = false
+                    }) { Text("Delete") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showBatchDeleteConfirm = false }) { Text("Cancel") }
+                }
+            )
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -379,13 +440,16 @@ fun SongsScreen(
                                 if (isSelected) selectedSongIds.remove(song.id)
                                 else selectedSongIds.add(song.id)
                             } else {
-                                onSongClick(song)
+                                onSongClick(song, filteredSongs)
                             }
                         },
                         onSelectToggle = {
                             if (!isSelectionMode) {
                                 isSelectionMode = true
                                 selectedSongIds.add(song.id)
+                            } else {
+                                if (isSelected) selectedSongIds.remove(song.id)
+                                else selectedSongIds.add(song.id)
                             }
                         },
                         onFavoriteToggle = { onToggleFavorite(song) },

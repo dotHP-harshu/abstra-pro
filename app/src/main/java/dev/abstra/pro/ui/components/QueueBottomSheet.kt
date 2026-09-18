@@ -27,6 +27,7 @@ fun QueueBottomSheet(
     onReorder: (from: Int, to: Int) -> Unit,
     onRemove: (Song) -> Unit,
     onClearQueue: () -> Unit,
+    onClearEntireQueue: () -> Unit,
     onSongClick: (Song) -> Unit
 ) {
     val colors = LocalAbstraColors.current
@@ -42,11 +43,11 @@ fun QueueBottomSheet(
     if (showClearConfirm) {
         AlertDialog(
             onDismissRequest = { showClearConfirm = false },
-            title = { Text("Clear Queue") },
-            text = { Text("Are you sure you want to clear the upcoming queue?") },
+            title = { Text("Clear entire queue?") },
+            text = { Text("Playback will stop and all songs will be removed from the queue.") },
             confirmButton = {
                 TextButton(onClick = {
-                    onClearQueue()
+                    onClearEntireQueue()
                     showClearConfirm = false
                 }) { Text("Clear") }
             },
@@ -88,7 +89,7 @@ fun QueueBottomSheet(
                 }
                 TextButton(
                     onClick = { showClearConfirm = true },
-                    enabled = queue.size > (currentIndex + 1).coerceAtLeast(0)
+                    enabled = queue.size > 1
                 ) {
                     Icon(
                         imageVector = Icons.Default.DeleteSweep,
@@ -96,7 +97,7 @@ fun QueueBottomSheet(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Clear", fontSize = 12.sp)
+                    Text("Clear all", fontSize = 12.sp)
                 }
             }
 

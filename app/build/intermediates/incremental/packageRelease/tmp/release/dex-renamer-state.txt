@@ -1,0 +1,4 @@
+#Thu Sep 17 08:14:47 IST 2026
+base.0=D\:\\abstra-pro\\app\\build\\intermediates\\dex\\release\\minifyReleaseWithR8\\classes.dex
+renamed.0=classes.dex
+path.0=classes.dex

@@ -57,7 +57,7 @@ public final class LibraryDao_Impl implements LibraryDao {
       @Override
       @NonNull
       protected String createQuery() {
-        return "INSERT OR REPLACE INTO `songs` (`id`,`title`,`artist`,`album`,`durationMs`,`uriString`,`folderName`,`filePath`,`dateAdded`,`genre`,`albumId`,`isFavorite`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
+        return "INSERT OR REPLACE INTO `songs` (`id`,`title`,`artist`,`album`,`durationMs`,`uriString`,`folderName`,`filePath`,`dateAdded`,`genre`,`albumId`,`isFavorite`,`lyrics`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
       }
 
       @Override
@@ -80,6 +80,11 @@ public final class LibraryDao_Impl implements LibraryDao {
         statement.bindLong(11, entity.getAlbumId());
         final int _tmp = entity.isFavorite() ? 1 : 0;
         statement.bindLong(12, _tmp);
+        if (entity.getLyrics() == null) {
+          statement.bindNull(13);
+        } else {
+          statement.bindString(13, entity.getLyrics());
+        }
       }
     };
     this.__insertionAdapterOfSongOverrideEntity = new EntityInsertionAdapter<SongOverrideEntity>(__db) {
@@ -386,6 +391,7 @@ public final class LibraryDao_Impl implements LibraryDao {
           final int _cursorIndexOfGenre = CursorUtil.getColumnIndexOrThrow(_cursor, "genre");
           final int _cursorIndexOfAlbumId = CursorUtil.getColumnIndexOrThrow(_cursor, "albumId");
           final int _cursorIndexOfIsFavorite = CursorUtil.getColumnIndexOrThrow(_cursor, "isFavorite");
+          final int _cursorIndexOfLyrics = CursorUtil.getColumnIndexOrThrow(_cursor, "lyrics");
           final List<SongEntity> _result = new ArrayList<SongEntity>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final SongEntity _item;
@@ -419,7 +425,13 @@ public final class LibraryDao_Impl implements LibraryDao {
             final int _tmp;
             _tmp = _cursor.getInt(_cursorIndexOfIsFavorite);
             _tmpIsFavorite = _tmp != 0;
-            _item = new SongEntity(_tmpId,_tmpTitle,_tmpArtist,_tmpAlbum,_tmpDurationMs,_tmpUriString,_tmpFolderName,_tmpFilePath,_tmpDateAdded,_tmpGenre,_tmpAlbumId,_tmpIsFavorite);
+            final String _tmpLyrics;
+            if (_cursor.isNull(_cursorIndexOfLyrics)) {
+              _tmpLyrics = null;
+            } else {
+              _tmpLyrics = _cursor.getString(_cursorIndexOfLyrics);
+            }
+            _item = new SongEntity(_tmpId,_tmpTitle,_tmpArtist,_tmpAlbum,_tmpDurationMs,_tmpUriString,_tmpFolderName,_tmpFilePath,_tmpDateAdded,_tmpGenre,_tmpAlbumId,_tmpIsFavorite,_tmpLyrics);
             _result.add(_item);
           }
           return _result;
@@ -460,6 +472,7 @@ public final class LibraryDao_Impl implements LibraryDao {
           final int _cursorIndexOfGenre = CursorUtil.getColumnIndexOrThrow(_cursor, "genre");
           final int _cursorIndexOfAlbumId = CursorUtil.getColumnIndexOrThrow(_cursor, "albumId");
           final int _cursorIndexOfIsFavorite = CursorUtil.getColumnIndexOrThrow(_cursor, "isFavorite");
+          final int _cursorIndexOfLyrics = CursorUtil.getColumnIndexOrThrow(_cursor, "lyrics");
           final SongEntity _result;
           if (_cursor.moveToFirst()) {
             final String _tmpId;
@@ -492,7 +505,13 @@ public final class LibraryDao_Impl implements LibraryDao {
             final int _tmp;
             _tmp = _cursor.getInt(_cursorIndexOfIsFavorite);
             _tmpIsFavorite = _tmp != 0;
-            _result = new SongEntity(_tmpId,_tmpTitle,_tmpArtist,_tmpAlbum,_tmpDurationMs,_tmpUriString,_tmpFolderName,_tmpFilePath,_tmpDateAdded,_tmpGenre,_tmpAlbumId,_tmpIsFavorite);
+            final String _tmpLyrics;
+            if (_cursor.isNull(_cursorIndexOfLyrics)) {
+              _tmpLyrics = null;
+            } else {
+              _tmpLyrics = _cursor.getString(_cursorIndexOfLyrics);
+            }
+            _result = new SongEntity(_tmpId,_tmpTitle,_tmpArtist,_tmpAlbum,_tmpDurationMs,_tmpUriString,_tmpFolderName,_tmpFilePath,_tmpDateAdded,_tmpGenre,_tmpAlbumId,_tmpIsFavorite,_tmpLyrics);
           } else {
             _result = null;
           }
@@ -575,6 +594,78 @@ public final class LibraryDao_Impl implements LibraryDao {
         _statement.release();
       }
     });
+  }
+
+  @Override
+  public Object getOverride(final String songId,
+      final Continuation<? super SongOverrideEntity> $completion) {
+    final String _sql = "SELECT * FROM song_overrides WHERE songId = ? LIMIT 1";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
+    int _argIndex = 1;
+    _statement.bindString(_argIndex, songId);
+    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
+    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<SongOverrideEntity>() {
+      @Override
+      @Nullable
+      public SongOverrideEntity call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfSongId = CursorUtil.getColumnIndexOrThrow(_cursor, "songId");
+          final int _cursorIndexOfCustomTitle = CursorUtil.getColumnIndexOrThrow(_cursor, "customTitle");
+          final int _cursorIndexOfCustomArtist = CursorUtil.getColumnIndexOrThrow(_cursor, "customArtist");
+          final int _cursorIndexOfCustomAlbum = CursorUtil.getColumnIndexOrThrow(_cursor, "customAlbum");
+          final int _cursorIndexOfCustomGenre = CursorUtil.getColumnIndexOrThrow(_cursor, "customGenre");
+          final int _cursorIndexOfCustomCoverUri = CursorUtil.getColumnIndexOrThrow(_cursor, "customCoverUri");
+          final int _cursorIndexOfIsFavorite = CursorUtil.getColumnIndexOrThrow(_cursor, "isFavorite");
+          final SongOverrideEntity _result;
+          if (_cursor.moveToFirst()) {
+            final String _tmpSongId;
+            _tmpSongId = _cursor.getString(_cursorIndexOfSongId);
+            final String _tmpCustomTitle;
+            if (_cursor.isNull(_cursorIndexOfCustomTitle)) {
+              _tmpCustomTitle = null;
+            } else {
+              _tmpCustomTitle = _cursor.getString(_cursorIndexOfCustomTitle);
+            }
+            final String _tmpCustomArtist;
+            if (_cursor.isNull(_cursorIndexOfCustomArtist)) {
+              _tmpCustomArtist = null;
+            } else {
+              _tmpCustomArtist = _cursor.getString(_cursorIndexOfCustomArtist);
+            }
+            final String _tmpCustomAlbum;
+            if (_cursor.isNull(_cursorIndexOfCustomAlbum)) {
+              _tmpCustomAlbum = null;
+            } else {
+              _tmpCustomAlbum = _cursor.getString(_cursorIndexOfCustomAlbum);
+            }
+            final String _tmpCustomGenre;
+            if (_cursor.isNull(_cursorIndexOfCustomGenre)) {
+              _tmpCustomGenre = null;
+            } else {
+              _tmpCustomGenre = _cursor.getString(_cursorIndexOfCustomGenre);
+            }
+            final String _tmpCustomCoverUri;
+            if (_cursor.isNull(_cursorIndexOfCustomCoverUri)) {
+              _tmpCustomCoverUri = null;
+            } else {
+              _tmpCustomCoverUri = _cursor.getString(_cursorIndexOfCustomCoverUri);
+            }
+            final boolean _tmpIsFavorite;
+            final int _tmp;
+            _tmp = _cursor.getInt(_cursorIndexOfIsFavorite);
+            _tmpIsFavorite = _tmp != 0;
+            _result = new SongOverrideEntity(_tmpSongId,_tmpCustomTitle,_tmpCustomArtist,_tmpCustomAlbum,_tmpCustomGenre,_tmpCustomCoverUri,_tmpIsFavorite);
+          } else {
+            _result = null;
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+          _statement.release();
+        }
+      }
+    }, $completion);
   }
 
   @Override

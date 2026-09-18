@@ -39,6 +39,8 @@ fun PlaylistDetailScreen(
     viewModel: MusicViewModel,
     onBack: () -> Unit,
     onPlaySong: (Song, List<Song>) -> Unit,
+    onPlayAll: (List<Song>) -> Unit,
+    onShuffleAll: (List<Song>) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = LocalAbstraColors.current
@@ -85,6 +87,44 @@ fun PlaylistDetailScreen(
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary)
             }
             Spacer(modifier = Modifier.width(8.dp))
+            
+            // Thumbnail
+            val firstSong = currentSongs.firstOrNull()
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        androidx.compose.ui.graphics.Brush.linearGradient(
+                            listOf(
+                                colors.primary.copy(alpha = 0.6f),
+                                colors.accent.copy(alpha = 0.4f)
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (firstSong != null) {
+                    dev.abstra.pro.ui.components.ThumbnailOnly(
+                        trackId = firstSong.id,
+                        title = firstSong.title,
+                        artist = firstSong.artist,
+                        uriString = firstSong.uriString,
+                        modifier = Modifier.fillMaxSize(),
+                        cornerRadius = 12.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.QueueMusic,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.9f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = playlistName,
@@ -100,6 +140,44 @@ fun PlaylistDetailScreen(
             }
             IconButton(onClick = { showAddSongsDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Add Songs", tint = colors.primary)
+            }
+        }
+        
+        // Action Buttons Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilledTonalButton(
+                onClick = { onPlayAll(currentSongs) },
+                enabled = currentSongs.isNotEmpty(),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = colors.bgCard,
+                    contentColor = colors.textPrimary
+                ),
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Play All", fontSize = 12.sp)
+            }
+
+            Button(
+                onClick = { onShuffleAll(currentSongs) },
+                enabled = currentSongs.isNotEmpty(),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.primary,
+                    contentColor = Color.White
+                ),
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(Icons.Default.Shuffle, null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Shuffle", fontSize = 12.sp)
             }
         }
 

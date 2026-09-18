@@ -27,6 +27,9 @@ interface LibraryDao {
     @Query("SELECT * FROM song_overrides")
     fun getAllOverrides(): Flow<List<SongOverrideEntity>>
 
+    @Query("SELECT * FROM song_overrides WHERE songId = :songId LIMIT 1")
+    suspend fun getOverride(songId: String): SongOverrideEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveOverride(override: SongOverrideEntity)
 

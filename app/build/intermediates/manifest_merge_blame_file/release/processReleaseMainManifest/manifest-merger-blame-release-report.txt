@@ -1,0 +1,242 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="dev.abstra.pro"
+4    android:versionCode="2"
+5    android:versionName="1.1.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="24"
+9        android:targetSdkVersion="35" />
+10
+11    <!-- Audio reading permissions -->
+12    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+12-->D:\abstra-pro\app\src\main\AndroidManifest.xml:6:5-75
+12-->D:\abstra-pro\app\src\main\AndroidManifest.xml:6:22-72
+13    <uses-permission
+13-->D:\abstra-pro\app\src\main\AndroidManifest.xml:7:5-9:38
+14        android:name="android.permission.READ_EXTERNAL_STORAGE"
+14-->D:\abstra-pro\app\src\main\AndroidManifest.xml:8:9-64
+15        android:maxSdkVersion="32" />
+15-->D:\abstra-pro\app\src\main\AndroidManifest.xml:9:9-35
+16    <uses-permission
+16-->D:\abstra-pro\app\src\main\AndroidManifest.xml:10:5-12:38
+17        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+17-->D:\abstra-pro\app\src\main\AndroidManifest.xml:11:9-65
+18        android:maxSdkVersion="28" />
+18-->D:\abstra-pro\app\src\main\AndroidManifest.xml:12:9-35
+19
+20    <!-- Playback and Foreground Service permissions -->
+21    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+21-->D:\abstra-pro\app\src\main\AndroidManifest.xml:15:5-77
+21-->D:\abstra-pro\app\src\main\AndroidManifest.xml:15:22-74
+22    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+22-->D:\abstra-pro\app\src\main\AndroidManifest.xml:16:5-92
+22-->D:\abstra-pro\app\src\main\AndroidManifest.xml:16:22-89
+23    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+23-->D:\abstra-pro\app\src\main\AndroidManifest.xml:17:5-77
+23-->D:\abstra-pro\app\src\main\AndroidManifest.xml:17:22-74
+24    <uses-permission android:name="android.permission.WAKE_LOCK" />
+24-->D:\abstra-pro\app\src\main\AndroidManifest.xml:18:5-68
+24-->D:\abstra-pro\app\src\main\AndroidManifest.xml:18:22-65
+25    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+25-->D:\abstra-pro\app\src\main\AndroidManifest.xml:19:5-80
+25-->D:\abstra-pro\app\src\main\AndroidManifest.xml:19:22-77
+26    <uses-permission android:name="android.permission.VIBRATE" />
+26-->D:\abstra-pro\app\src\main\AndroidManifest.xml:20:5-66
+26-->D:\abstra-pro\app\src\main\AndroidManifest.xml:20:22-63
+27    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+27-->[androidx.media3:media3-exoplayer:1.4.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\e45c8162b42685e2bf7a0bc7d73fed3b\transformed\media3-exoplayer-1.4.1\AndroidManifest.xml:22:5-79
+27-->[androidx.media3:media3-exoplayer:1.4.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\e45c8162b42685e2bf7a0bc7d73fed3b\transformed\media3-exoplayer-1.4.1\AndroidManifest.xml:22:22-76
+28
+29    <permission
+29-->[androidx.core:core:1.13.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\df6e864189cc69ea5d189a8f87a520d1\transformed\core-1.13.1\AndroidManifest.xml:22:5-24:47
+30        android:name="dev.abstra.pro.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+30-->[androidx.core:core:1.13.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\df6e864189cc69ea5d189a8f87a520d1\transformed\core-1.13.1\AndroidManifest.xml:23:9-81
+31        android:protectionLevel="signature" />
+31-->[androidx.core:core:1.13.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\df6e864189cc69ea5d189a8f87a520d1\transformed\core-1.13.1\AndroidManifest.xml:24:9-44
+32
+33    <uses-permission android:name="dev.abstra.pro.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" /> <!-- Strict privacy: ZERO Internet permission -->
+33-->[androidx.core:core:1.13.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\df6e864189cc69ea5d189a8f87a520d1\transformed\core-1.13.1\AndroidManifest.xml:26:5-97
+33-->[androidx.core:core:1.13.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\df6e864189cc69ea5d189a8f87a520d1\transformed\core-1.13.1\AndroidManifest.xml:26:22-94
+34    <application
+34-->D:\abstra-pro\app\src\main\AndroidManifest.xml:24:5-77:19
+35        android:name="dev.abstra.pro.AbstraProApp"
+35-->D:\abstra-pro\app\src\main\AndroidManifest.xml:25:9-37
+36        android:allowBackup="true"
+36-->D:\abstra-pro\app\src\main\AndroidManifest.xml:26:9-35
+37        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+37-->[androidx.core:core:1.13.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\df6e864189cc69ea5d189a8f87a520d1\transformed\core-1.13.1\AndroidManifest.xml:28:18-86
+38        android:dataExtractionRules="@xml/data_extraction_rules"
+38-->D:\abstra-pro\app\src\main\AndroidManifest.xml:27:9-65
+39        android:extractNativeLibs="false"
+40        android:fullBackupContent="@xml/backup_rules"
+40-->D:\abstra-pro\app\src\main\AndroidManifest.xml:28:9-54
+41        android:icon="@mipmap/ic_launcher"
+41-->D:\abstra-pro\app\src\main\AndroidManifest.xml:29:9-43
+42        android:label="@string/app_name"
+42-->D:\abstra-pro\app\src\main\AndroidManifest.xml:30:9-41
+43        android:roundIcon="@mipmap/ic_launcher_round"
+43-->D:\abstra-pro\app\src\main\AndroidManifest.xml:31:9-54
+44        android:supportsRtl="true"
+44-->D:\abstra-pro\app\src\main\AndroidManifest.xml:32:9-35
+45        android:theme="@style/Theme.AbstraPro" >
+45-->D:\abstra-pro\app\src\main\AndroidManifest.xml:33:9-47
+46        <activity
+46-->D:\abstra-pro\app\src\main\AndroidManifest.xml:36:9-52:20
+47            android:name="dev.abstra.pro.MainActivity"
+47-->D:\abstra-pro\app\src\main\AndroidManifest.xml:37:13-41
+48            android:exported="true"
+48-->D:\abstra-pro\app\src\main\AndroidManifest.xml:38:13-36
+49            android:launchMode="singleTop"
+49-->D:\abstra-pro\app\src\main\AndroidManifest.xml:39:13-43
+50            android:windowSoftInputMode="adjustResize" >
+50-->D:\abstra-pro\app\src\main\AndroidManifest.xml:40:13-55
+51            <intent-filter>
+51-->D:\abstra-pro\app\src\main\AndroidManifest.xml:41:13-44:29
+52                <action android:name="android.intent.action.MAIN" />
+52-->D:\abstra-pro\app\src\main\AndroidManifest.xml:42:17-69
+52-->D:\abstra-pro\app\src\main\AndroidManifest.xml:42:25-66
+53
+54                <category android:name="android.intent.category.LAUNCHER" />
+54-->D:\abstra-pro\app\src\main\AndroidManifest.xml:43:17-77
+54-->D:\abstra-pro\app\src\main\AndroidManifest.xml:43:27-74
+55            </intent-filter>
+56
+57            <!-- Support viewing audio files from file manager -->
+58            <intent-filter>
+58-->D:\abstra-pro\app\src\main\AndroidManifest.xml:47:13-51:29
+59                <action android:name="android.intent.action.VIEW" />
+59-->D:\abstra-pro\app\src\main\AndroidManifest.xml:48:17-69
+59-->D:\abstra-pro\app\src\main\AndroidManifest.xml:48:25-66
+60
+61                <category android:name="android.intent.category.DEFAULT" />
+61-->D:\abstra-pro\app\src\main\AndroidManifest.xml:49:17-76
+61-->D:\abstra-pro\app\src\main\AndroidManifest.xml:49:27-73
+62
+63                <data android:mimeType="audio/*" />
+63-->D:\abstra-pro\app\src\main\AndroidManifest.xml:50:17-52
+63-->D:\abstra-pro\app\src\main\AndroidManifest.xml:50:23-49
+64            </intent-filter>
+65        </activity>
+66
+67        <service
+67-->D:\abstra-pro\app\src\main\AndroidManifest.xml:54:9-62:19
+68            android:name="dev.abstra.pro.service.MusicPlaybackService"
+68-->D:\abstra-pro\app\src\main\AndroidManifest.xml:55:13-57
+69            android:exported="true"
+69-->D:\abstra-pro\app\src\main\AndroidManifest.xml:56:13-36
+70            android:foregroundServiceType="mediaPlayback" >
+70-->D:\abstra-pro\app\src\main\AndroidManifest.xml:57:13-58
+71            <intent-filter>
+71-->D:\abstra-pro\app\src\main\AndroidManifest.xml:58:13-61:29
+72                <action android:name="androidx.media3.session.MediaSessionService" />
+72-->D:\abstra-pro\app\src\main\AndroidManifest.xml:59:17-86
+72-->D:\abstra-pro\app\src\main\AndroidManifest.xml:59:25-83
+73                <action android:name="android.media.browse.MediaBrowserService" />
+73-->D:\abstra-pro\app\src\main\AndroidManifest.xml:60:17-83
+73-->D:\abstra-pro\app\src\main\AndroidManifest.xml:60:25-80
+74            </intent-filter>
+75        </service>
+76
+77        <!-- Home-Screen Blur Widget Provider -->
+78        <receiver
+78-->D:\abstra-pro\app\src\main\AndroidManifest.xml:65:9-75:20
+79            android:name="dev.abstra.pro.widget.AbstraWidgetProvider"
+79-->D:\abstra-pro\app\src\main\AndroidManifest.xml:66:13-56
+80            android:exported="false" >
+80-->D:\abstra-pro\app\src\main\AndroidManifest.xml:67:13-37
+81            <intent-filter>
+81-->D:\abstra-pro\app\src\main\AndroidManifest.xml:68:13-71:29
+82                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+82-->D:\abstra-pro\app\src\main\AndroidManifest.xml:69:17-84
+82-->D:\abstra-pro\app\src\main\AndroidManifest.xml:69:25-81
+83                <action android:name="dev.abstra.pro.WIDGET_UPDATE" />
+83-->D:\abstra-pro\app\src\main\AndroidManifest.xml:70:17-71
+83-->D:\abstra-pro\app\src\main\AndroidManifest.xml:70:25-68
+84            </intent-filter>
+85
+86            <meta-data
+86-->D:\abstra-pro\app\src\main\AndroidManifest.xml:72:13-74:62
+87                android:name="android.appwidget.provider"
+87-->D:\abstra-pro\app\src\main\AndroidManifest.xml:73:17-58
+88                android:resource="@xml/abstra_widget_info" />
+88-->D:\abstra-pro\app\src\main\AndroidManifest.xml:74:17-59
+89        </receiver>
+90
+91        <provider
+91-->[androidx.lifecycle:lifecycle-process:2.8.7] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\42246510cc4a6324aef21e8e9863ce9f\transformed\lifecycle-process-2.8.7\AndroidManifest.xml:24:9-32:20
+92            android:name="androidx.startup.InitializationProvider"
+92-->[androidx.lifecycle:lifecycle-process:2.8.7] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\42246510cc4a6324aef21e8e9863ce9f\transformed\lifecycle-process-2.8.7\AndroidManifest.xml:25:13-67
+93            android:authorities="dev.abstra.pro.androidx-startup"
+93-->[androidx.lifecycle:lifecycle-process:2.8.7] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\42246510cc4a6324aef21e8e9863ce9f\transformed\lifecycle-process-2.8.7\AndroidManifest.xml:26:13-68
+94            android:exported="false" >
+94-->[androidx.lifecycle:lifecycle-process:2.8.7] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\42246510cc4a6324aef21e8e9863ce9f\transformed\lifecycle-process-2.8.7\AndroidManifest.xml:27:13-37
+95            <meta-data
+95-->[androidx.lifecycle:lifecycle-process:2.8.7] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\42246510cc4a6324aef21e8e9863ce9f\transformed\lifecycle-process-2.8.7\AndroidManifest.xml:29:13-31:52
+96                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+96-->[androidx.lifecycle:lifecycle-process:2.8.7] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\42246510cc4a6324aef21e8e9863ce9f\transformed\lifecycle-process-2.8.7\AndroidManifest.xml:30:17-78
+97                android:value="androidx.startup" />
+97-->[androidx.lifecycle:lifecycle-process:2.8.7] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\42246510cc4a6324aef21e8e9863ce9f\transformed\lifecycle-process-2.8.7\AndroidManifest.xml:31:17-49
+98            <meta-data
+98-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\6e3d2c914c0cebc3b34394bd250692b5\transformed\emoji2-1.3.0\AndroidManifest.xml:29:13-31:52
+99                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+99-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\6e3d2c914c0cebc3b34394bd250692b5\transformed\emoji2-1.3.0\AndroidManifest.xml:30:17-75
+100                android:value="androidx.startup" />
+100-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\6e3d2c914c0cebc3b34394bd250692b5\transformed\emoji2-1.3.0\AndroidManifest.xml:31:17-49
+101            <meta-data
+101-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:29:13-31:52
+102                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+102-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:30:17-85
+103                android:value="androidx.startup" />
+103-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:31:17-49
+104        </provider>
+105
+106        <service
+106-->[androidx.room:room-runtime:2.6.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\767a8b14b1770c9898bc15ee82416cbf\transformed\room-runtime-2.6.1\AndroidManifest.xml:24:9-28:63
+107            android:name="androidx.room.MultiInstanceInvalidationService"
+107-->[androidx.room:room-runtime:2.6.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\767a8b14b1770c9898bc15ee82416cbf\transformed\room-runtime-2.6.1\AndroidManifest.xml:25:13-74
+108            android:directBootAware="true"
+108-->[androidx.room:room-runtime:2.6.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\767a8b14b1770c9898bc15ee82416cbf\transformed\room-runtime-2.6.1\AndroidManifest.xml:26:13-43
+109            android:exported="false" />
+109-->[androidx.room:room-runtime:2.6.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\767a8b14b1770c9898bc15ee82416cbf\transformed\room-runtime-2.6.1\AndroidManifest.xml:27:13-37
+110
+111        <receiver
+111-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:34:9-52:20
+112            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+112-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:35:13-76
+113            android:directBootAware="false"
+113-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:36:13-44
+114            android:enabled="true"
+114-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:37:13-35
+115            android:exported="true"
+115-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:38:13-36
+116            android:permission="android.permission.DUMP" >
+116-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:39:13-57
+117            <intent-filter>
+117-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:40:13-42:29
+118                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+118-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:41:17-91
+118-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:41:25-88
+119            </intent-filter>
+120            <intent-filter>
+120-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:43:13-45:29
+121                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+121-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:44:17-85
+121-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:44:25-82
+122            </intent-filter>
+123            <intent-filter>
+123-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:46:13-48:29
+124                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+124-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:47:17-88
+124-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:47:25-85
+125            </intent-filter>
+126            <intent-filter>
+126-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:49:13-51:29
+127                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+127-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:50:17-95
+127-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Harsh Prajapati\.gradle\caches\8.10.2\transforms\52849e6372b3c54d7c62e99289b6f35f\transformed\profileinstaller-1.3.1\AndroidManifest.xml:50:25-92
+128            </intent-filter>
+129        </receiver>
+130    </application>
+131
+132</manifest>

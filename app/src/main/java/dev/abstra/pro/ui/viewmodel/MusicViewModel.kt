@@ -265,8 +265,19 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                     songCount = entity.songCount
                 )
             }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _firstSongsByPlaylist = MutableStateFlow<Map<Long, Song?>>(emptyMap())
+    val firstSongsByPlaylist: StateFlow<Map<Long, Song?>> = _firstSongsByPlaylist.asStateFlow()
+
+    fun loadPlaylistFirstSongs(playlists: List<Playlist>) {
+        viewModelScope.launch {
+            val map = playlists.associate { pl ->
+                pl.id to runCatching { repository.getFirstSongOfPlaylist(pl.id) }.getOrNull()
+            }
+            _firstSongsByPlaylist.value = map
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
 
     val isScanning: StateFlow<Boolean> = repository.isScanning
 
@@ -415,15 +426,20 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // ── Playback Controls ──
-    fun playSong(song: Song) {
+    /**
+     * Play a song from a specific context list. The queue will be set to the entire context,
+     * with the chosen song starting at the matching index. This way "play from this view"
+     * preserves the user's sort/filter.
+     */
+    fun playSong(song: Song, context: List<Song>? = null) {
         val e = engine ?: return
         if (e.currentSong.value?.id == song.id) {
             togglePlayPause()
             return
         }
-        val currentList = allSongs.value
-        val index = currentList.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
-        e.setQueue(currentList, index, autoPlay = true)
+        val playList = context ?: allSongs.value
+        val index = playList.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+        e.setQueue(playList, index, autoPlay = true)
     }
 
     fun playQueue(songs: List<Song>, startIndex: Int = 0) {
@@ -441,6 +457,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun removeQueueItem(song: Song) = engine?.removeQueueItem(song)
     fun moveQueueItem(from: Int, to: Int) = engine?.moveQueueItem(from, to)
     fun clearQueue() = engine?.clearUpNext()
+    fun clearEntireQueue() = engine?.clearEntireQueue()
 
     fun togglePlayPause() {
         val e = engine ?: return
@@ -456,11 +473,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun setCrossfade(seconds: Int) = engine?.setCrossfade(seconds)
     fun setGapless(enabled: Boolean) = engine?.setGapless(enabled)
 
-    private val _playlistPickerForSong = MutableStateFlow<Song?>(null)
-    val playlistPickerForSong: StateFlow<Song?> = _playlistPickerForSong.asStateFlow()
+    private val _playlistPickerForSongs = MutableStateFlow<List<Song>?>(null)
+    val playlistPickerForSongs: StateFlow<List<Song>?> = _playlistPickerForSongs.asStateFlow()
 
-    fun openPlaylistPicker(song: Song) { _playlistPickerForSong.value = song }
-    fun closePlaylistPicker() { _playlistPickerForSong.value = null }
+    fun openPlaylistPicker(song: Song) { _playlistPickerForSongs.value = listOf(song) }
+    fun openPlaylistPicker(songs: List<Song>) { _playlistPickerForSongs.value = songs }
+    fun closePlaylistPicker() { _playlistPickerForSongs.value = null }
 
     // ── Library & Playlist Operations ──
     fun toggleFavorite(song: Song) {
@@ -530,6 +548,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     // ── Song Deletion ──
     private val _pendingDeleteSong = MutableStateFlow<Song?>(null)
+    private val _pendingDeleteSongs = MutableStateFlow<List<Song>>(emptyList())
 
     /**
      * Kicks off a device delete for the song. On API 30+ a system confirmation
@@ -550,6 +569,23 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         if (!deleted || song == null) return
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteSongFromLibrary(song.id)
+        }
+    }
+
+    suspend fun requestBatchDelete(songs: List<Song>): IntentSender? {
+        val sender = repository.requestBatchDelete(songs)
+        if (sender != null) {
+            _pendingDeleteSongs.value = songs
+        }
+        return sender
+    }
+
+    fun onBatchDeleteConfirmed(deleted: Boolean) {
+        val songs = _pendingDeleteSongs.value
+        _pendingDeleteSongs.value = emptyList()
+        if (!deleted || songs.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            songs.forEach { repository.deleteSongFromLibrary(it.id) }
         }
     }
 

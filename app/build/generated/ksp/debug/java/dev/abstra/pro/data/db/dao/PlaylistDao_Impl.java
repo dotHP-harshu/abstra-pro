@@ -13,6 +13,7 @@ import androidx.room.util.DBUtil;
 import androidx.sqlite.db.SupportSQLiteStatement;
 import dev.abstra.pro.data.db.entities.PlaylistEntity;
 import dev.abstra.pro.data.db.entities.PlaylistSongEntity;
+import dev.abstra.pro.data.db.entities.PlaylistWithCount;
 import dev.abstra.pro.data.db.entities.SongEntity;
 import java.lang.Class;
 import java.lang.Exception;
@@ -358,6 +359,51 @@ public final class PlaylistDao_Impl implements PlaylistDao {
   }
 
   @Override
+  public Flow<List<PlaylistWithCount>> getAllPlaylistsWithCount() {
+    final String _sql = "SELECT p.id, p.name, p.description, p.createdAt, (SELECT COUNT(songId) FROM playlist_songs WHERE playlistId = p.id) as songCount FROM playlists p ORDER BY p.name ASC";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
+    return CoroutinesRoom.createFlow(__db, false, new String[] {"playlist_songs",
+        "playlists"}, new Callable<List<PlaylistWithCount>>() {
+      @Override
+      @NonNull
+      public List<PlaylistWithCount> call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = 0;
+          final int _cursorIndexOfName = 1;
+          final int _cursorIndexOfDescription = 2;
+          final int _cursorIndexOfCreatedAt = 3;
+          final int _cursorIndexOfSongCount = 4;
+          final List<PlaylistWithCount> _result = new ArrayList<PlaylistWithCount>(_cursor.getCount());
+          while (_cursor.moveToNext()) {
+            final PlaylistWithCount _item;
+            final long _tmpId;
+            _tmpId = _cursor.getLong(_cursorIndexOfId);
+            final String _tmpName;
+            _tmpName = _cursor.getString(_cursorIndexOfName);
+            final String _tmpDescription;
+            _tmpDescription = _cursor.getString(_cursorIndexOfDescription);
+            final long _tmpCreatedAt;
+            _tmpCreatedAt = _cursor.getLong(_cursorIndexOfCreatedAt);
+            final int _tmpSongCount;
+            _tmpSongCount = _cursor.getInt(_cursorIndexOfSongCount);
+            _item = new PlaylistWithCount(_tmpId,_tmpName,_tmpDescription,_tmpCreatedAt,_tmpSongCount);
+            _result.add(_item);
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+        }
+      }
+
+      @Override
+      protected void finalize() {
+        _statement.release();
+      }
+    });
+  }
+
+  @Override
   public Flow<List<PlaylistSongEntity>> getPlaylistSongs(final long playlistId) {
     final String _sql = "SELECT * FROM playlist_songs WHERE playlistId = ? ORDER BY sortOrder ASC";
     final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
@@ -422,6 +468,7 @@ public final class PlaylistDao_Impl implements PlaylistDao {
           final int _cursorIndexOfGenre = CursorUtil.getColumnIndexOrThrow(_cursor, "genre");
           final int _cursorIndexOfAlbumId = CursorUtil.getColumnIndexOrThrow(_cursor, "albumId");
           final int _cursorIndexOfIsFavorite = CursorUtil.getColumnIndexOrThrow(_cursor, "isFavorite");
+          final int _cursorIndexOfLyrics = CursorUtil.getColumnIndexOrThrow(_cursor, "lyrics");
           final List<SongEntity> _result = new ArrayList<SongEntity>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final SongEntity _item;
@@ -455,7 +502,13 @@ public final class PlaylistDao_Impl implements PlaylistDao {
             final int _tmp;
             _tmp = _cursor.getInt(_cursorIndexOfIsFavorite);
             _tmpIsFavorite = _tmp != 0;
-            _item = new SongEntity(_tmpId,_tmpTitle,_tmpArtist,_tmpAlbum,_tmpDurationMs,_tmpUriString,_tmpFolderName,_tmpFilePath,_tmpDateAdded,_tmpGenre,_tmpAlbumId,_tmpIsFavorite);
+            final String _tmpLyrics;
+            if (_cursor.isNull(_cursorIndexOfLyrics)) {
+              _tmpLyrics = null;
+            } else {
+              _tmpLyrics = _cursor.getString(_cursorIndexOfLyrics);
+            }
+            _item = new SongEntity(_tmpId,_tmpTitle,_tmpArtist,_tmpAlbum,_tmpDurationMs,_tmpUriString,_tmpFolderName,_tmpFilePath,_tmpDateAdded,_tmpGenre,_tmpAlbumId,_tmpIsFavorite,_tmpLyrics);
             _result.add(_item);
           }
           return _result;
@@ -497,6 +550,7 @@ public final class PlaylistDao_Impl implements PlaylistDao {
           final int _cursorIndexOfGenre = CursorUtil.getColumnIndexOrThrow(_cursor, "genre");
           final int _cursorIndexOfAlbumId = CursorUtil.getColumnIndexOrThrow(_cursor, "albumId");
           final int _cursorIndexOfIsFavorite = CursorUtil.getColumnIndexOrThrow(_cursor, "isFavorite");
+          final int _cursorIndexOfLyrics = CursorUtil.getColumnIndexOrThrow(_cursor, "lyrics");
           final List<SongEntity> _result = new ArrayList<SongEntity>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final SongEntity _item;
@@ -530,7 +584,13 @@ public final class PlaylistDao_Impl implements PlaylistDao {
             final int _tmp;
             _tmp = _cursor.getInt(_cursorIndexOfIsFavorite);
             _tmpIsFavorite = _tmp != 0;
-            _item = new SongEntity(_tmpId,_tmpTitle,_tmpArtist,_tmpAlbum,_tmpDurationMs,_tmpUriString,_tmpFolderName,_tmpFilePath,_tmpDateAdded,_tmpGenre,_tmpAlbumId,_tmpIsFavorite);
+            final String _tmpLyrics;
+            if (_cursor.isNull(_cursorIndexOfLyrics)) {
+              _tmpLyrics = null;
+            } else {
+              _tmpLyrics = _cursor.getString(_cursorIndexOfLyrics);
+            }
+            _item = new SongEntity(_tmpId,_tmpTitle,_tmpArtist,_tmpAlbum,_tmpDurationMs,_tmpUriString,_tmpFolderName,_tmpFilePath,_tmpDateAdded,_tmpGenre,_tmpAlbumId,_tmpIsFavorite,_tmpLyrics);
             _result.add(_item);
           }
           return _result;

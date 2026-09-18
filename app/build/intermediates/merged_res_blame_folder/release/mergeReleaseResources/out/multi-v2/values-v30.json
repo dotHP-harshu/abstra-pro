@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "dev.abstra.pro.app-mergeReleaseResources-63:/values-v30/values-v30.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\Harsh Prajapati\\.gradle\\caches\\8.10.2\\transforms\\aee2c4b00e487742e2791d547561e436\\transformed\\material3-release\\res\\values-v30\\values-v30.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "72",
+                        "endOffsets": "123"
+                    }
+                }
+            ]
+        }
+    ]
+}

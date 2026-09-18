@@ -42,7 +42,7 @@ fun FoldersScreen(
     storageVolumes: List<StorageInfo>,
     currentSong: Song?,
     isPlaying: Boolean,
-    onSongClick: (Song) -> Unit,
+    onSongClick: (Song, List<Song>) -> Unit,
     onPlayFolder: (Folder) -> Unit,
     onShuffleFolder: (Folder) -> Unit,
     onExcludeFolder: (Folder) -> Unit,
@@ -380,7 +380,7 @@ private fun FolderDetailView(
     folder: Folder,
     currentSong: Song?,
     isPlaying: Boolean,
-    onSongClick: (Song) -> Unit,
+    onSongClick: (Song, List<Song>) -> Unit,
     onPlayAll: () -> Unit,
     onShuffleAll: () -> Unit,
     onBack: () -> Unit
@@ -458,7 +458,7 @@ private fun FolderDetailView(
                 SongListItem(
                     song = song,
                     isPlaying = isPlaying && currentSong?.id == song.id,
-                    onClick = { onSongClick(song) },
+                    onClick = { onSongClick(song, folder.songs) },
                     onFavoriteToggle = {}, // TODO: pass actual toggles
                     onOptionsClick = {}
                 )

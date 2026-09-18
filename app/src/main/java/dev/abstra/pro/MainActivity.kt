@@ -86,7 +86,7 @@ class MainActivity : ComponentActivity() {
             val isSleepTimerDialogOpen by viewModel.isSleepTimerDialogOpen.collectAsState()
             val isCreatePlaylistDialogOpen by viewModel.isCreatePlaylistDialogOpen.collectAsState()
             val editingSong by viewModel.editingMetadataSong.collectAsState()
-            val playlistPickerForSong by viewModel.playlistPickerForSong.collectAsState()
+            val playlistPickerForSongs by viewModel.playlistPickerForSongs.collectAsState()
             val isOutputRoutePickerOpen by viewModel.isOutputRoutePickerOpen.collectAsState()
             
             var showQueueSheet by remember { mutableStateOf(false) }
@@ -118,6 +118,12 @@ class MainActivity : ComponentActivity() {
             val visibleSongs by viewModel.visibleSongs.collectAsState()
             val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
             val playlists by viewModel.playlists.collectAsState()
+            val firstSongs by viewModel.firstSongsByPlaylist.collectAsState()
+            
+            LaunchedEffect(playlists) {
+                viewModel.loadPlaylistFirstSongs(playlists)
+            }
+            
             val aiMixes by viewModel.aiMixes.collectAsState()
             val lyricsLines by viewModel.currentLyrics.collectAsState()
             val lyricsOffsetMs by viewModel.lyricsTimeOffsetMs.collectAsState()
@@ -197,6 +203,7 @@ class MainActivity : ComponentActivity() {
                 ActivityResultContracts.StartIntentSenderForResult()
             ) { result ->
                 viewModel.onSongDeleteConfirmed(result.resultCode == android.app.Activity.RESULT_OK)
+                viewModel.onBatchDeleteConfirmed(result.resultCode == android.app.Activity.RESULT_OK)
             }
 
             LaunchedEffect(Unit) {
@@ -300,7 +307,7 @@ class MainActivity : ComponentActivity() {
                                         songs = visibleSongs,
                                         currentSong = currentSong,
                                         isPlaying = isPlaying,
-                                        onSongClick = { viewModel.playSong(it) },
+                                        onSongClick = { song, currentList -> viewModel.playSong(song, currentList) },
                                         onPlayAll = { viewModel.playQueue(it) },
                                         onShuffleAll = { viewModel.shuffleQueue(it) },
                                         onToggleFavorite = { viewModel.toggleFavorite(it) },
@@ -316,6 +323,15 @@ class MainActivity : ComponentActivity() {
                                                 }
                                             }
                                         },
+                                        onBatchDelete = { songs ->
+                                            coroutineScope.launch {
+                                                val sender = viewModel.requestBatchDelete(songs)
+                                                sender?.let { s ->
+                                                    deleteSongLauncher.launch(androidx.activity.result.IntentSenderRequest.Builder(s).build())
+                                                }
+                                            }
+                                        },
+                                        onBatchAddToPlaylist = { songs -> viewModel.openPlaylistPicker(songs) },
                                         onRescanLibrary = { viewModel.rescanLibrary() },
                                         sortOption = viewModel.sortOption.collectAsState().value,
                                         onSortOptionChange = { viewModel.setSortOption(it) },
@@ -325,6 +341,7 @@ class MainActivity : ComponentActivity() {
                                 MainNavigationTab.PLAYLISTS -> {
                                     PlaylistsScreen(
                                         playlists = playlists,
+                                        firstSongs = firstSongs,
                                         favoriteSongs = allSongs.filter { it.isFavorite },
                                         recentlyAddedSongs = visibleSongs.sortedByDescending { it.dateAdded }.take(20),
                                         currentSong = currentSong,
@@ -366,7 +383,7 @@ class MainActivity : ComponentActivity() {
                                         storageVolumes = realVolumes,
                                         currentSong = currentSong,
                                         isPlaying = isPlaying,
-                                        onSongClick = { viewModel.playSong(it) },
+                                        onSongClick = { song, list -> viewModel.playSong(song, list) },
                                         onPlayFolder = { f -> viewModel.playQueue(f.songs) },
                                         onShuffleFolder = { f -> viewModel.shuffleQueue(f.songs) },
                                         onExcludeFolder = { folder -> viewModel.excludeFolder(folder.path) },
@@ -485,8 +502,10 @@ class MainActivity : ComponentActivity() {
                             viewModel = viewModel,
                             onBack = { selectedPlaylist = null },
                             onPlaySong = { song, queue -> 
-                                viewModel.playQueue(queue, queue.indexOf(song).coerceAtLeast(0))
+                                viewModel.playSong(song, queue)
                             },
+                            onPlayAll = { queue -> viewModel.playQueue(queue) },
+                            onShuffleAll = { queue -> viewModel.shuffleQueue(queue) },
                             modifier = Modifier
                                 .fillMaxSize()
                                 .zIndex(5f)
@@ -567,6 +586,10 @@ class MainActivity : ComponentActivity() {
                                 onReorder = { from, to -> viewModel.moveQueueItem(from, to) },
                                 onRemove = { song -> viewModel.removeQueueItem(song) },
                                 onClearQueue = { viewModel.clearQueue() },
+                                onClearEntireQueue = {
+                                    viewModel.clearEntireQueue()
+                                    showQueueSheet = false
+                                },
                                 onSongClick = { song -> 
                                     viewModel.playSong(song)
                                     showQueueSheet = false
@@ -575,7 +598,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    playlistPickerForSong?.let { song ->
+                    playlistPickerForSongs?.let { songsToBatchAdd ->
                         AddToPlaylistDialog(
                             playlists = playlists,
                             onDismiss = { viewModel.closePlaylistPicker() },
@@ -584,7 +607,7 @@ class MainActivity : ComponentActivity() {
                                 viewModel.closePlaylistPicker()
                             },
                             onSelectPlaylist = { pl ->
-                                viewModel.addSongToPlaylist(pl.id, song)
+                                viewModel.addSongsToPlaylist(pl.id, songsToBatchAdd)
                                 viewModel.closePlaylistPicker()
                             }
                         )

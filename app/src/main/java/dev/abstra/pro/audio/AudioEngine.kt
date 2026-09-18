@@ -244,6 +244,15 @@ class AudioEngine(private val context: Context) {
         }
     }
 
+    /** Clears the entire queue including the currently playing track, and stops playback. */
+    fun clearEntireQueue() {
+        _queue.value = emptyList()
+        originalQueue = emptyList()
+        _currentIndex.value = 0
+        pause()
+        _shouldBePlaying = false
+    }
+
     fun playSong(song: Song, autoPlay: Boolean = true) {
         val prev = _currentSong.value
         if (prev != null && prev.id != song.id) {

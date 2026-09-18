@@ -113,6 +113,13 @@ class MusicPlaybackService : MediaSessionService() {
                 invalidatePlayerState?.invoke()
             }
         }
+        serviceScope.launch {
+            audioEngine.currentPosition.collect {
+                if (audioEngine.isPlaying.value) {
+                    invalidatePlayerState?.invoke()
+                }
+            }
+        }
         startProgressTicker()
     }
 
@@ -403,7 +410,10 @@ class MusicPlaybackService : MediaSessionService() {
         progressTickerJob = serviceScope.launch {
             while (true) {
                 delay(500L)
-                if (audioEngine.isPlaying.value) updateNotification()
+                if (audioEngine.isPlaying.value) {
+                    updateNotification()
+                    invalidatePlayerState?.invoke()
+                }
             }
         }
     }

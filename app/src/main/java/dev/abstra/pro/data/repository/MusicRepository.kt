@@ -277,6 +277,27 @@ class MusicRepository(
     suspend fun getSongsForPlaylistSync(playlistId: Long): List<SongEntity> =
         playlistDao.getSongsInPlaylistSync(playlistId)
 
+    suspend fun getFirstSongOfPlaylist(playlistId: Long): Song? = withContext(Dispatchers.IO) {
+        val firstEntity = playlistDao.getSongsInPlaylistSync(playlistId).firstOrNull() ?: return@withContext null
+        val override = libraryDao.getOverride(firstEntity.id)
+        Song(
+            id = firstEntity.id,
+            title = override?.customTitle ?: firstEntity.title,
+            artist = override?.customArtist ?: firstEntity.artist,
+            album = override?.customAlbum ?: firstEntity.album,
+            durationMs = firstEntity.durationMs,
+            uriString = firstEntity.uriString,
+            folderName = firstEntity.folderName,
+            filePath = firstEntity.filePath,
+            dateAdded = firstEntity.dateAdded,
+            genre = override?.customGenre ?: firstEntity.genre,
+            albumId = firstEntity.albumId,
+            isFavorite = override?.isFavorite ?: firstEntity.isFavorite,
+            coverUrl = override?.customCoverUri,
+            lyrics = firstEntity.lyrics
+        )
+    }
+
     // ─────────────────────────────────────────────────────────────
     // PLAYLIST BACKUP / RESTORE VIA STORAGE ACCESS FRAMEWORK (JSON)
     // ─────────────────────────────────────────────────────────────
@@ -350,9 +371,9 @@ class MusicRepository(
      */
     suspend fun requestSongDelete(song: Song): IntentSender? = withContext(Dispatchers.IO) {
         try {
-            val uri = Uri.parse(song.uriString)
+            val uri = android.net.Uri.parse(song.uriString)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                MediaStore.createDeleteRequest(context.contentResolver, listOf(uri)).intentSender
+                android.provider.MediaStore.createDeleteRequest(context.contentResolver, listOf(uri)).intentSender
             } else {
                 val rows = context.contentResolver.delete(uri, null, null)
                 if (rows > 0) deleteSongFromLibrary(song.id)
@@ -360,6 +381,30 @@ class MusicRepository(
             }
         } catch (e: Exception) {
             Log.e("MusicRepository", "Failed to request delete for ${song.title}", e)
+            null
+        }
+    }
+
+    /**
+     * Requests a system-confirmed delete for multiple songs.
+     */
+    suspend fun requestBatchDelete(songs: List<Song>): IntentSender? = withContext(Dispatchers.IO) {
+        try {
+            val uris = songs.map { android.net.Uri.parse(it.uriString) }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                android.provider.MediaStore.createDeleteRequest(context.contentResolver, uris).intentSender
+            } else {
+                var rows = 0
+                uris.forEach {
+                    rows += context.contentResolver.delete(it, null, null)
+                }
+                if (rows > 0) {
+                    songs.forEach { deleteSongFromLibrary(it.id) }
+                }
+                null
+            }
+        } catch (e: Exception) {
+            Log.e("MusicRepository", "Failed to request batch delete", e)
             null
         }
     }

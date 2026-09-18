@@ -35,6 +35,7 @@ import dev.abstra.pro.ui.theme.LocalAbstraColors
 @Composable
 fun PlaylistsScreen(
     playlists: List<Playlist>,
+    firstSongs: Map<Long, Song?>,
     favoriteSongs: List<Song>,
     recentlyAddedSongs: List<Song>,
     currentSong: Song?,
@@ -251,6 +252,7 @@ fun PlaylistsScreen(
                             items(playlists, key = { it.id }) { playlist ->
                                 PlaylistCard(
                                     playlist = playlist,
+                                    firstSong = firstSongs[playlist.id],
                                     onClick = { onPlaylistClick(playlist) },
                                     onExport = { onExportPlaylistClick(playlist) },
                                     onDelete = { onDeletePlaylistClick(playlist) }
@@ -331,6 +333,7 @@ private fun SmartPlaylistChip(
 @Composable
 private fun PlaylistCard(
     playlist: Playlist,
+    firstSong: Song?,
     onClick: () -> Unit,
     onExport: () -> Unit,
     onDelete: () -> Unit,
@@ -367,12 +370,23 @@ private fun PlaylistCard(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.QueueMusic,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.9f),
-                    modifier = Modifier.size(44.dp)
-                )
+                if (firstSong != null) {
+                    dev.abstra.pro.ui.components.ThumbnailOnly(
+                        trackId = firstSong.id,
+                        title = firstSong.title,
+                        artist = firstSong.artist,
+                        uriString = firstSong.uriString,
+                        modifier = Modifier.fillMaxSize(),
+                        cornerRadius = 16.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.QueueMusic,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.9f),
+                        modifier = Modifier.size(44.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
