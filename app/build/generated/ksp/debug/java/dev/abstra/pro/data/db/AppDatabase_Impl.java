@@ -45,7 +45,7 @@ public final class AppDatabase_Impl extends AppDatabase {
   @Override
   @NonNull
   protected SupportSQLiteOpenHelper createOpenHelper(@NonNull final DatabaseConfiguration config) {
-    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(2) {
+    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(3) {
       @Override
       public void createAllTables(@NonNull final SupportSQLiteDatabase db) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `songs` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `artist` TEXT NOT NULL, `album` TEXT NOT NULL, `durationMs` INTEGER NOT NULL, `uriString` TEXT NOT NULL, `folderName` TEXT NOT NULL, `filePath` TEXT NOT NULL, `dateAdded` INTEGER NOT NULL, `genre` TEXT, `albumId` INTEGER NOT NULL, `isFavorite` INTEGER NOT NULL, `lyrics` TEXT, PRIMARY KEY(`id`))");
@@ -58,8 +58,9 @@ public final class AppDatabase_Impl extends AppDatabase {
         db.execSQL("CREATE TABLE IF NOT EXISTS `custom_eq_presets` (`name` TEXT NOT NULL, `bandLevelsString` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`name`))");
         db.execSQL("CREATE TABLE IF NOT EXISTS `lyrics_cache` (`songId` TEXT NOT NULL, `rawLrc` TEXT NOT NULL, `userOffsetMs` INTEGER NOT NULL, `cachedTimestamp` INTEGER NOT NULL, PRIMARY KEY(`songId`))");
         db.execSQL("CREATE TABLE IF NOT EXISTS `widget_prefs` (`id` INTEGER NOT NULL, `coverShape` TEXT NOT NULL, `blurStrength` REAL NOT NULL, `useSolidBg` INTEGER NOT NULL, `accentColor` INTEGER NOT NULL, PRIMARY KEY(`id`))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `app_settings` (`id` INTEGER NOT NULL, `userName` TEXT, `greetingEnabled` INTEGER NOT NULL, `hasAskedForName` INTEGER NOT NULL, `excludedFolderPaths` TEXT NOT NULL, `themeMode` TEXT NOT NULL, `accentColor` TEXT NOT NULL, `crossfadeSeconds` INTEGER NOT NULL, `gaplessEnabled` INTEGER NOT NULL, `defaultSleepTimerMin` INTEGER NOT NULL, `keepScreenOnInPlayer` INTEGER NOT NULL, `sortOption` TEXT NOT NULL, `showQueueOnSongClick` INTEGER NOT NULL, `playlistOrder` TEXT NOT NULL, PRIMARY KEY(`id`))");
         db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)");
-        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cf15099e68cd48e729dc9a60a71663fa')");
+        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '020ebe000402faab9de9a743da58c8a2')");
       }
 
       @Override
@@ -74,6 +75,7 @@ public final class AppDatabase_Impl extends AppDatabase {
         db.execSQL("DROP TABLE IF EXISTS `custom_eq_presets`");
         db.execSQL("DROP TABLE IF EXISTS `lyrics_cache`");
         db.execSQL("DROP TABLE IF EXISTS `widget_prefs`");
+        db.execSQL("DROP TABLE IF EXISTS `app_settings`");
         final List<? extends RoomDatabase.Callback> _callbacks = mCallbacks;
         if (_callbacks != null) {
           for (RoomDatabase.Callback _callback : _callbacks) {
@@ -286,9 +288,33 @@ public final class AppDatabase_Impl extends AppDatabase {
                   + " Expected:\n" + _infoWidgetPrefs + "\n"
                   + " Found:\n" + _existingWidgetPrefs);
         }
+        final HashMap<String, TableInfo.Column> _columnsAppSettings = new HashMap<String, TableInfo.Column>(14);
+        _columnsAppSettings.put("id", new TableInfo.Column("id", "INTEGER", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("userName", new TableInfo.Column("userName", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("greetingEnabled", new TableInfo.Column("greetingEnabled", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("hasAskedForName", new TableInfo.Column("hasAskedForName", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("excludedFolderPaths", new TableInfo.Column("excludedFolderPaths", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("themeMode", new TableInfo.Column("themeMode", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("accentColor", new TableInfo.Column("accentColor", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("crossfadeSeconds", new TableInfo.Column("crossfadeSeconds", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("gaplessEnabled", new TableInfo.Column("gaplessEnabled", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("defaultSleepTimerMin", new TableInfo.Column("defaultSleepTimerMin", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("keepScreenOnInPlayer", new TableInfo.Column("keepScreenOnInPlayer", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("sortOption", new TableInfo.Column("sortOption", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("showQueueOnSongClick", new TableInfo.Column("showQueueOnSongClick", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAppSettings.put("playlistOrder", new TableInfo.Column("playlistOrder", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        final HashSet<TableInfo.ForeignKey> _foreignKeysAppSettings = new HashSet<TableInfo.ForeignKey>(0);
+        final HashSet<TableInfo.Index> _indicesAppSettings = new HashSet<TableInfo.Index>(0);
+        final TableInfo _infoAppSettings = new TableInfo("app_settings", _columnsAppSettings, _foreignKeysAppSettings, _indicesAppSettings);
+        final TableInfo _existingAppSettings = TableInfo.read(db, "app_settings");
+        if (!_infoAppSettings.equals(_existingAppSettings)) {
+          return new RoomOpenHelper.ValidationResult(false, "app_settings(dev.abstra.pro.data.db.entities.SettingsEntity).\n"
+                  + " Expected:\n" + _infoAppSettings + "\n"
+                  + " Found:\n" + _existingAppSettings);
+        }
         return new RoomOpenHelper.ValidationResult(true, null);
       }
-    }, "cf15099e68cd48e729dc9a60a71663fa", "6629ebbff71c2d06ad991127c1472a59");
+    }, "020ebe000402faab9de9a743da58c8a2", "8a2b0be3666c792cf31b57041e97ac37");
     final SupportSQLiteOpenHelper.Configuration _sqliteConfig = SupportSQLiteOpenHelper.Configuration.builder(config.context).name(config.name).callback(_openCallback).build();
     final SupportSQLiteOpenHelper _helper = config.sqliteOpenHelperFactory.create(_sqliteConfig);
     return _helper;
@@ -299,7 +325,7 @@ public final class AppDatabase_Impl extends AppDatabase {
   protected InvalidationTracker createInvalidationTracker() {
     final HashMap<String, String> _shadowTablesMap = new HashMap<String, String>(0);
     final HashMap<String, Set<String>> _viewTables = new HashMap<String, Set<String>>(0);
-    return new InvalidationTracker(this, _shadowTablesMap, _viewTables, "songs","song_overrides","playlists","playlist_songs","playback_telemetry","markov_transitions","effect_settings","custom_eq_presets","lyrics_cache","widget_prefs");
+    return new InvalidationTracker(this, _shadowTablesMap, _viewTables, "songs","song_overrides","playlists","playlist_songs","playback_telemetry","markov_transitions","effect_settings","custom_eq_presets","lyrics_cache","widget_prefs","app_settings");
   }
 
   @Override
@@ -318,6 +344,7 @@ public final class AppDatabase_Impl extends AppDatabase {
       _db.execSQL("DELETE FROM `custom_eq_presets`");
       _db.execSQL("DELETE FROM `lyrics_cache`");
       _db.execSQL("DELETE FROM `widget_prefs`");
+      _db.execSQL("DELETE FROM `app_settings`");
       super.setTransactionSuccessful();
     } finally {
       super.endTransaction();

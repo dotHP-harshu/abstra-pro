@@ -60,10 +60,36 @@ class MusicRepository(
         }
     }
 
+    fun observeMostPlayedSongs(limit: Int = 20): Flow<List<Song>> =
+        combine(telemetryDao.observeMostPlayed(), allSongs) { rows, songs ->
+            val songMap = songs.associateBy { it.id }
+            rows.mapNotNull { row -> songMap[row.songId] }.take(limit)
+        }
+
     val playlists: Flow<List<PlaylistEntity>> = playlistDao.getAllPlaylists()
     val playlistsWithCount: Flow<List<dev.abstra.pro.data.db.entities.PlaylistWithCount>> = playlistDao.getAllPlaylistsWithCount()
     val totalLifetimePlaytime: Flow<Long> = telemetryDao.getTotalLifetimePlaytime().map { it ?: 0L }
     val totalPlayCount: Flow<Int> = telemetryDao.getTotalPlayCount().map { it ?: 0 }
+    val appSettings: Flow<SettingsEntity> = settingsDao.observeSettings().map { it ?: SettingsEntity() }
+
+    // ─────────────────────────────────────────────────────────────
+    // SETTINGS
+    // ─────────────────────────────────────────────────────────────
+    
+    suspend fun setUserName(name: String?) = withContext(Dispatchers.IO) {
+        if (settingsDao.getSettingsSync() == null) settingsDao.saveSettings(SettingsEntity())
+        settingsDao.setUserName(name)
+    }
+
+    suspend fun setGreetingEnabled(enabled: Boolean) = withContext(Dispatchers.IO) {
+        if (settingsDao.getSettingsSync() == null) settingsDao.saveSettings(SettingsEntity())
+        settingsDao.setGreetingEnabled(enabled)
+    }
+
+    suspend fun markAskedForName() = withContext(Dispatchers.IO) {
+        if (settingsDao.getSettingsSync() == null) settingsDao.saveSettings(SettingsEntity())
+        settingsDao.markAskedForName()
+    }
 
     // ─────────────────────────────────────────────────────────────
     // MEDIASTORE SCANNER (Filters unwanted audio, <10s audio, voice notes)
@@ -321,7 +347,19 @@ class MusicRepository(
                 exportList.add(PlaylistData(name = pl.name, description = pl.description, songs = exportSongs))
             }
 
-            val exportData = PlaylistExportData(playlists = exportList, settings = settings)
+            val overrides = libraryDao.getAllOverrides().first()
+            val appSettings = settingsDao.getSettingsSync()
+            val widgetPrefs = settingsDao.getWidgetPrefs().first()
+            val customPresets = settingsDao.getCustomPresets().first()
+
+            val exportData = BackupData(
+                playlists = exportList,
+                settings = settings,
+                songOverrides = overrides,
+                appSettings = appSettings,
+                widgetPrefs = widgetPrefs,
+                customEqPresets = customPresets
+            )
             val jsonString = gson.toJson(exportData)
             outputStream.bufferedWriter().use { it.write(jsonString) }
             true
@@ -334,7 +372,7 @@ class MusicRepository(
     suspend fun importPlaylists(inputStream: InputStream): Pair<Boolean, List<SettingEntry>?> = withContext(Dispatchers.IO) {
         try {
             val jsonString = inputStream.bufferedReader().use { it.readText() }
-            val importData = gson.fromJson(jsonString, PlaylistExportData::class.java) ?: return@withContext false to null
+            val importData = gson.fromJson(jsonString, BackupData::class.java) ?: return@withContext false to null
             val currentSongs = libraryDao.getAllSongs().first()
 
             for (pl in importData.playlists) {
@@ -353,6 +391,11 @@ class MusicRepository(
                     }
                 }
             }
+
+            importData.songOverrides.forEach { libraryDao.saveOverride(it) }
+            importData.appSettings?.let { settingsDao.saveSettings(it) }
+            importData.widgetPrefs?.let { settingsDao.saveWidgetPrefs(it) }
+            importData.customEqPresets.forEach { settingsDao.insertCustomPreset(it) }
             true to importData.settings
         } catch (e: Exception) {
             Log.e("MusicRepository", "Failed to import playlists", e)

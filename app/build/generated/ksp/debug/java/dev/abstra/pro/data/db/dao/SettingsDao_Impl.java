@@ -1,6 +1,7 @@
 package dev.abstra.pro.data.db.dao;
 
 import android.database.Cursor;
+import android.os.CancellationSignal;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.room.CoroutinesRoom;
@@ -13,6 +14,7 @@ import androidx.room.util.DBUtil;
 import androidx.sqlite.db.SupportSQLiteStatement;
 import dev.abstra.pro.data.db.entities.CustomEqPresetEntity;
 import dev.abstra.pro.data.db.entities.EffectSettingsEntity;
+import dev.abstra.pro.data.db.entities.SettingsEntity;
 import dev.abstra.pro.data.db.entities.WidgetPrefsEntity;
 import java.lang.Class;
 import java.lang.Exception;
@@ -34,16 +36,59 @@ import kotlinx.coroutines.flow.Flow;
 public final class SettingsDao_Impl implements SettingsDao {
   private final RoomDatabase __db;
 
+  private final EntityInsertionAdapter<SettingsEntity> __insertionAdapterOfSettingsEntity;
+
   private final EntityInsertionAdapter<EffectSettingsEntity> __insertionAdapterOfEffectSettingsEntity;
 
   private final EntityInsertionAdapter<CustomEqPresetEntity> __insertionAdapterOfCustomEqPresetEntity;
 
   private final EntityInsertionAdapter<WidgetPrefsEntity> __insertionAdapterOfWidgetPrefsEntity;
 
+  private final SharedSQLiteStatement __preparedStmtOfSetUserName;
+
+  private final SharedSQLiteStatement __preparedStmtOfSetGreetingEnabled;
+
+  private final SharedSQLiteStatement __preparedStmtOfMarkAskedForName;
+
   private final SharedSQLiteStatement __preparedStmtOfDeleteCustomPreset;
 
   public SettingsDao_Impl(@NonNull final RoomDatabase __db) {
     this.__db = __db;
+    this.__insertionAdapterOfSettingsEntity = new EntityInsertionAdapter<SettingsEntity>(__db) {
+      @Override
+      @NonNull
+      protected String createQuery() {
+        return "INSERT OR REPLACE INTO `app_settings` (`id`,`userName`,`greetingEnabled`,`hasAskedForName`,`excludedFolderPaths`,`themeMode`,`accentColor`,`crossfadeSeconds`,`gaplessEnabled`,`defaultSleepTimerMin`,`keepScreenOnInPlayer`,`sortOption`,`showQueueOnSongClick`,`playlistOrder`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+      }
+
+      @Override
+      protected void bind(@NonNull final SupportSQLiteStatement statement,
+          @NonNull final SettingsEntity entity) {
+        statement.bindLong(1, entity.getId());
+        if (entity.getUserName() == null) {
+          statement.bindNull(2);
+        } else {
+          statement.bindString(2, entity.getUserName());
+        }
+        final int _tmp = entity.getGreetingEnabled() ? 1 : 0;
+        statement.bindLong(3, _tmp);
+        final int _tmp_1 = entity.getHasAskedForName() ? 1 : 0;
+        statement.bindLong(4, _tmp_1);
+        statement.bindString(5, entity.getExcludedFolderPaths());
+        statement.bindString(6, entity.getThemeMode());
+        statement.bindString(7, entity.getAccentColor());
+        statement.bindLong(8, entity.getCrossfadeSeconds());
+        final int _tmp_2 = entity.getGaplessEnabled() ? 1 : 0;
+        statement.bindLong(9, _tmp_2);
+        statement.bindLong(10, entity.getDefaultSleepTimerMin());
+        final int _tmp_3 = entity.getKeepScreenOnInPlayer() ? 1 : 0;
+        statement.bindLong(11, _tmp_3);
+        statement.bindString(12, entity.getSortOption());
+        final int _tmp_4 = entity.getShowQueueOnSongClick() ? 1 : 0;
+        statement.bindLong(13, _tmp_4);
+        statement.bindString(14, entity.getPlaylistOrder());
+      }
+    };
     this.__insertionAdapterOfEffectSettingsEntity = new EntityInsertionAdapter<EffectSettingsEntity>(__db) {
       @Override
       @NonNull
@@ -104,6 +149,30 @@ public final class SettingsDao_Impl implements SettingsDao {
         statement.bindLong(5, entity.getAccentColor());
       }
     };
+    this.__preparedStmtOfSetUserName = new SharedSQLiteStatement(__db) {
+      @Override
+      @NonNull
+      public String createQuery() {
+        final String _query = "UPDATE app_settings SET userName = ? WHERE id = 0";
+        return _query;
+      }
+    };
+    this.__preparedStmtOfSetGreetingEnabled = new SharedSQLiteStatement(__db) {
+      @Override
+      @NonNull
+      public String createQuery() {
+        final String _query = "UPDATE app_settings SET greetingEnabled = ? WHERE id = 0";
+        return _query;
+      }
+    };
+    this.__preparedStmtOfMarkAskedForName = new SharedSQLiteStatement(__db) {
+      @Override
+      @NonNull
+      public String createQuery() {
+        final String _query = "UPDATE app_settings SET hasAskedForName = 1 WHERE id = 0";
+        return _query;
+      }
+    };
     this.__preparedStmtOfDeleteCustomPreset = new SharedSQLiteStatement(__db) {
       @Override
       @NonNull
@@ -112,6 +181,25 @@ public final class SettingsDao_Impl implements SettingsDao {
         return _query;
       }
     };
+  }
+
+  @Override
+  public Object saveSettings(final SettingsEntity settings,
+      final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        __db.beginTransaction();
+        try {
+          __insertionAdapterOfSettingsEntity.insert(settings);
+          __db.setTransactionSuccessful();
+          return Unit.INSTANCE;
+        } finally {
+          __db.endTransaction();
+        }
+      }
+    }, $completion);
   }
 
   @Override
@@ -172,6 +260,85 @@ public final class SettingsDao_Impl implements SettingsDao {
   }
 
   @Override
+  public Object setUserName(final String name, final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        final SupportSQLiteStatement _stmt = __preparedStmtOfSetUserName.acquire();
+        int _argIndex = 1;
+        if (name == null) {
+          _stmt.bindNull(_argIndex);
+        } else {
+          _stmt.bindString(_argIndex, name);
+        }
+        try {
+          __db.beginTransaction();
+          try {
+            _stmt.executeUpdateDelete();
+            __db.setTransactionSuccessful();
+            return Unit.INSTANCE;
+          } finally {
+            __db.endTransaction();
+          }
+        } finally {
+          __preparedStmtOfSetUserName.release(_stmt);
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object setGreetingEnabled(final boolean enabled,
+      final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        final SupportSQLiteStatement _stmt = __preparedStmtOfSetGreetingEnabled.acquire();
+        int _argIndex = 1;
+        final int _tmp = enabled ? 1 : 0;
+        _stmt.bindLong(_argIndex, _tmp);
+        try {
+          __db.beginTransaction();
+          try {
+            _stmt.executeUpdateDelete();
+            __db.setTransactionSuccessful();
+            return Unit.INSTANCE;
+          } finally {
+            __db.endTransaction();
+          }
+        } finally {
+          __preparedStmtOfSetGreetingEnabled.release(_stmt);
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object markAskedForName(final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        final SupportSQLiteStatement _stmt = __preparedStmtOfMarkAskedForName.acquire();
+        try {
+          __db.beginTransaction();
+          try {
+            _stmt.executeUpdateDelete();
+            __db.setTransactionSuccessful();
+            return Unit.INSTANCE;
+          } finally {
+            __db.endTransaction();
+          }
+        } finally {
+          __preparedStmtOfMarkAskedForName.release(_stmt);
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
   public Object deleteCustomPreset(final String name,
       final Continuation<? super Unit> $completion) {
     return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
@@ -192,6 +359,173 @@ public final class SettingsDao_Impl implements SettingsDao {
           }
         } finally {
           __preparedStmtOfDeleteCustomPreset.release(_stmt);
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Flow<SettingsEntity> observeSettings() {
+    final String _sql = "SELECT * FROM app_settings WHERE id = 0";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
+    return CoroutinesRoom.createFlow(__db, false, new String[] {"app_settings"}, new Callable<SettingsEntity>() {
+      @Override
+      @Nullable
+      public SettingsEntity call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+          final int _cursorIndexOfUserName = CursorUtil.getColumnIndexOrThrow(_cursor, "userName");
+          final int _cursorIndexOfGreetingEnabled = CursorUtil.getColumnIndexOrThrow(_cursor, "greetingEnabled");
+          final int _cursorIndexOfHasAskedForName = CursorUtil.getColumnIndexOrThrow(_cursor, "hasAskedForName");
+          final int _cursorIndexOfExcludedFolderPaths = CursorUtil.getColumnIndexOrThrow(_cursor, "excludedFolderPaths");
+          final int _cursorIndexOfThemeMode = CursorUtil.getColumnIndexOrThrow(_cursor, "themeMode");
+          final int _cursorIndexOfAccentColor = CursorUtil.getColumnIndexOrThrow(_cursor, "accentColor");
+          final int _cursorIndexOfCrossfadeSeconds = CursorUtil.getColumnIndexOrThrow(_cursor, "crossfadeSeconds");
+          final int _cursorIndexOfGaplessEnabled = CursorUtil.getColumnIndexOrThrow(_cursor, "gaplessEnabled");
+          final int _cursorIndexOfDefaultSleepTimerMin = CursorUtil.getColumnIndexOrThrow(_cursor, "defaultSleepTimerMin");
+          final int _cursorIndexOfKeepScreenOnInPlayer = CursorUtil.getColumnIndexOrThrow(_cursor, "keepScreenOnInPlayer");
+          final int _cursorIndexOfSortOption = CursorUtil.getColumnIndexOrThrow(_cursor, "sortOption");
+          final int _cursorIndexOfShowQueueOnSongClick = CursorUtil.getColumnIndexOrThrow(_cursor, "showQueueOnSongClick");
+          final int _cursorIndexOfPlaylistOrder = CursorUtil.getColumnIndexOrThrow(_cursor, "playlistOrder");
+          final SettingsEntity _result;
+          if (_cursor.moveToFirst()) {
+            final int _tmpId;
+            _tmpId = _cursor.getInt(_cursorIndexOfId);
+            final String _tmpUserName;
+            if (_cursor.isNull(_cursorIndexOfUserName)) {
+              _tmpUserName = null;
+            } else {
+              _tmpUserName = _cursor.getString(_cursorIndexOfUserName);
+            }
+            final boolean _tmpGreetingEnabled;
+            final int _tmp;
+            _tmp = _cursor.getInt(_cursorIndexOfGreetingEnabled);
+            _tmpGreetingEnabled = _tmp != 0;
+            final boolean _tmpHasAskedForName;
+            final int _tmp_1;
+            _tmp_1 = _cursor.getInt(_cursorIndexOfHasAskedForName);
+            _tmpHasAskedForName = _tmp_1 != 0;
+            final String _tmpExcludedFolderPaths;
+            _tmpExcludedFolderPaths = _cursor.getString(_cursorIndexOfExcludedFolderPaths);
+            final String _tmpThemeMode;
+            _tmpThemeMode = _cursor.getString(_cursorIndexOfThemeMode);
+            final String _tmpAccentColor;
+            _tmpAccentColor = _cursor.getString(_cursorIndexOfAccentColor);
+            final int _tmpCrossfadeSeconds;
+            _tmpCrossfadeSeconds = _cursor.getInt(_cursorIndexOfCrossfadeSeconds);
+            final boolean _tmpGaplessEnabled;
+            final int _tmp_2;
+            _tmp_2 = _cursor.getInt(_cursorIndexOfGaplessEnabled);
+            _tmpGaplessEnabled = _tmp_2 != 0;
+            final int _tmpDefaultSleepTimerMin;
+            _tmpDefaultSleepTimerMin = _cursor.getInt(_cursorIndexOfDefaultSleepTimerMin);
+            final boolean _tmpKeepScreenOnInPlayer;
+            final int _tmp_3;
+            _tmp_3 = _cursor.getInt(_cursorIndexOfKeepScreenOnInPlayer);
+            _tmpKeepScreenOnInPlayer = _tmp_3 != 0;
+            final String _tmpSortOption;
+            _tmpSortOption = _cursor.getString(_cursorIndexOfSortOption);
+            final boolean _tmpShowQueueOnSongClick;
+            final int _tmp_4;
+            _tmp_4 = _cursor.getInt(_cursorIndexOfShowQueueOnSongClick);
+            _tmpShowQueueOnSongClick = _tmp_4 != 0;
+            final String _tmpPlaylistOrder;
+            _tmpPlaylistOrder = _cursor.getString(_cursorIndexOfPlaylistOrder);
+            _result = new SettingsEntity(_tmpId,_tmpUserName,_tmpGreetingEnabled,_tmpHasAskedForName,_tmpExcludedFolderPaths,_tmpThemeMode,_tmpAccentColor,_tmpCrossfadeSeconds,_tmpGaplessEnabled,_tmpDefaultSleepTimerMin,_tmpKeepScreenOnInPlayer,_tmpSortOption,_tmpShowQueueOnSongClick,_tmpPlaylistOrder);
+          } else {
+            _result = null;
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+        }
+      }
+
+      @Override
+      protected void finalize() {
+        _statement.release();
+      }
+    });
+  }
+
+  @Override
+  public Object getSettingsSync(final Continuation<? super SettingsEntity> $completion) {
+    final String _sql = "SELECT * FROM app_settings WHERE id = 0";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
+    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
+    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<SettingsEntity>() {
+      @Override
+      @Nullable
+      public SettingsEntity call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+          final int _cursorIndexOfUserName = CursorUtil.getColumnIndexOrThrow(_cursor, "userName");
+          final int _cursorIndexOfGreetingEnabled = CursorUtil.getColumnIndexOrThrow(_cursor, "greetingEnabled");
+          final int _cursorIndexOfHasAskedForName = CursorUtil.getColumnIndexOrThrow(_cursor, "hasAskedForName");
+          final int _cursorIndexOfExcludedFolderPaths = CursorUtil.getColumnIndexOrThrow(_cursor, "excludedFolderPaths");
+          final int _cursorIndexOfThemeMode = CursorUtil.getColumnIndexOrThrow(_cursor, "themeMode");
+          final int _cursorIndexOfAccentColor = CursorUtil.getColumnIndexOrThrow(_cursor, "accentColor");
+          final int _cursorIndexOfCrossfadeSeconds = CursorUtil.getColumnIndexOrThrow(_cursor, "crossfadeSeconds");
+          final int _cursorIndexOfGaplessEnabled = CursorUtil.getColumnIndexOrThrow(_cursor, "gaplessEnabled");
+          final int _cursorIndexOfDefaultSleepTimerMin = CursorUtil.getColumnIndexOrThrow(_cursor, "defaultSleepTimerMin");
+          final int _cursorIndexOfKeepScreenOnInPlayer = CursorUtil.getColumnIndexOrThrow(_cursor, "keepScreenOnInPlayer");
+          final int _cursorIndexOfSortOption = CursorUtil.getColumnIndexOrThrow(_cursor, "sortOption");
+          final int _cursorIndexOfShowQueueOnSongClick = CursorUtil.getColumnIndexOrThrow(_cursor, "showQueueOnSongClick");
+          final int _cursorIndexOfPlaylistOrder = CursorUtil.getColumnIndexOrThrow(_cursor, "playlistOrder");
+          final SettingsEntity _result;
+          if (_cursor.moveToFirst()) {
+            final int _tmpId;
+            _tmpId = _cursor.getInt(_cursorIndexOfId);
+            final String _tmpUserName;
+            if (_cursor.isNull(_cursorIndexOfUserName)) {
+              _tmpUserName = null;
+            } else {
+              _tmpUserName = _cursor.getString(_cursorIndexOfUserName);
+            }
+            final boolean _tmpGreetingEnabled;
+            final int _tmp;
+            _tmp = _cursor.getInt(_cursorIndexOfGreetingEnabled);
+            _tmpGreetingEnabled = _tmp != 0;
+            final boolean _tmpHasAskedForName;
+            final int _tmp_1;
+            _tmp_1 = _cursor.getInt(_cursorIndexOfHasAskedForName);
+            _tmpHasAskedForName = _tmp_1 != 0;
+            final String _tmpExcludedFolderPaths;
+            _tmpExcludedFolderPaths = _cursor.getString(_cursorIndexOfExcludedFolderPaths);
+            final String _tmpThemeMode;
+            _tmpThemeMode = _cursor.getString(_cursorIndexOfThemeMode);
+            final String _tmpAccentColor;
+            _tmpAccentColor = _cursor.getString(_cursorIndexOfAccentColor);
+            final int _tmpCrossfadeSeconds;
+            _tmpCrossfadeSeconds = _cursor.getInt(_cursorIndexOfCrossfadeSeconds);
+            final boolean _tmpGaplessEnabled;
+            final int _tmp_2;
+            _tmp_2 = _cursor.getInt(_cursorIndexOfGaplessEnabled);
+            _tmpGaplessEnabled = _tmp_2 != 0;
+            final int _tmpDefaultSleepTimerMin;
+            _tmpDefaultSleepTimerMin = _cursor.getInt(_cursorIndexOfDefaultSleepTimerMin);
+            final boolean _tmpKeepScreenOnInPlayer;
+            final int _tmp_3;
+            _tmp_3 = _cursor.getInt(_cursorIndexOfKeepScreenOnInPlayer);
+            _tmpKeepScreenOnInPlayer = _tmp_3 != 0;
+            final String _tmpSortOption;
+            _tmpSortOption = _cursor.getString(_cursorIndexOfSortOption);
+            final boolean _tmpShowQueueOnSongClick;
+            final int _tmp_4;
+            _tmp_4 = _cursor.getInt(_cursorIndexOfShowQueueOnSongClick);
+            _tmpShowQueueOnSongClick = _tmp_4 != 0;
+            final String _tmpPlaylistOrder;
+            _tmpPlaylistOrder = _cursor.getString(_cursorIndexOfPlaylistOrder);
+            _result = new SettingsEntity(_tmpId,_tmpUserName,_tmpGreetingEnabled,_tmpHasAskedForName,_tmpExcludedFolderPaths,_tmpThemeMode,_tmpAccentColor,_tmpCrossfadeSeconds,_tmpGaplessEnabled,_tmpDefaultSleepTimerMin,_tmpKeepScreenOnInPlayer,_tmpSortOption,_tmpShowQueueOnSongClick,_tmpPlaylistOrder);
+          } else {
+            _result = null;
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+          _statement.release();
         }
       }
     }, $completion);

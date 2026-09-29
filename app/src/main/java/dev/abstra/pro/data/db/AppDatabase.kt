@@ -21,9 +21,10 @@ import dev.abstra.pro.data.db.entities.*
         EffectSettingsEntity::class,
         CustomEqPresetEntity::class,
         LyricsCacheEntity::class,
-        WidgetPrefsEntity::class
+        WidgetPrefsEntity::class,
+        SettingsEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

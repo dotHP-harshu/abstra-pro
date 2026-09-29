@@ -58,6 +58,10 @@ fun SettingsScreen(
     onImportBackup: () -> Unit,
     onRescanLibrary: () -> Unit,
     onSelectFolder: () -> Unit,
+    userName: String?,
+    onUserNameChange: (String?) -> Unit,
+    greetingEnabled: Boolean,
+    onGreetingEnabledChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = LocalAbstraColors.current
@@ -104,6 +108,83 @@ fun SettingsScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // ─────────────────────────────────────────────────────────────
+            // 2. PERSONALIZATION
+            // ─────────────────────────────────────────────────────────────
+            item {
+                SettingsSection(title = "Personalization") {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        var showNameDialog by remember { mutableStateOf(false) }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showNameDialog = true }
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Display name", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
+                                Text(
+                                    if (userName.isNullOrBlank()) "Tap to set your name for the greeting" else "Greeting says: \"Good morning, $userName\"",
+                                    fontSize = 12.sp,
+                                    color = colors.textSecondary
+                                )
+                            }
+                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = colors.textSecondary)
+                        }
+
+                        if (showNameDialog) {
+                            var draft by remember { mutableStateOf(userName.orEmpty()) }
+                            AlertDialog(
+                                onDismissRequest = { showNameDialog = false },
+                                title = { Text("Your name") },
+                                text = {
+                                    Column {
+                                        Text("Used in the greeting on the home tab.", color = colors.textSecondary, fontSize = 13.sp)
+                                        Spacer(Modifier.height(8.dp))
+                                        OutlinedTextField(
+                                            value = draft,
+                                            onValueChange = { if (it.length <= 30) draft = it },
+                                            singleLine = true,
+                                            placeholder = { Text("e.g. Harsh") },
+                                        )
+                                    }
+                                },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        onUserNameChange(draft.trim().ifBlank { null })
+                                        showNameDialog = false
+                                    }) { Text("Save") }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showNameDialog = false }) { Text("Cancel") }
+                                },
+                            )
+                        }
+
+                        HorizontalDivider(color = colors.border.copy(alpha = 0.5f))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Show greeting", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
+                                Text("Hide name and greeting from the home tab", fontSize = 12.sp, color = colors.textSecondary)
+                            }
+                            Switch(
+                                checked = greetingEnabled,
+                                onCheckedChange = onGreetingEnabledChange,
+                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = colors.primary)
+                            )
+                        }
+                    }
+                }
+            }
+
             // ─────────────────────────────────────────────────────────────
             // 3. AUDIO ENGINE & PLAYBACK
             // ─────────────────────────────────────────────────────────────

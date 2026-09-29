@@ -36,6 +36,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.sample
 
 @UnstableApi
 class MusicPlaybackService : MediaSessionService() {
@@ -114,9 +115,11 @@ class MusicPlaybackService : MediaSessionService() {
             }
         }
         serviceScope.launch {
-            audioEngine.currentPosition.collect {
-                if (audioEngine.isPlaying.value) {
+            var lastInvalidatedAt = 0L
+            audioEngine.currentPosition.sample(50).collect {
+                if (audioEngine.isPlaying.value && it - lastInvalidatedAt > 250) {
                     invalidatePlayerState?.invoke()
+                    lastInvalidatedAt = it
                 }
             }
         }
@@ -410,9 +413,11 @@ class MusicPlaybackService : MediaSessionService() {
         progressTickerJob = serviceScope.launch {
             while (true) {
                 delay(500L)
+                // Push fresh state to the system so the QS tile, lockscreen,
+                // and notification slider all update.
+                invalidatePlayerState?.invoke()
                 if (audioEngine.isPlaying.value) {
                     updateNotification()
-                    invalidatePlayerState?.invoke()
                 }
             }
         }

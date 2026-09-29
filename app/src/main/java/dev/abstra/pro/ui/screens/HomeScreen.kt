@@ -43,6 +43,7 @@ fun HomeScreen(
     isPlaying: Boolean,
     recentlyPlayed: List<Song>,
     recentlyAdded: List<Song>,
+    mostPlayed: List<Song>,
     playlists: List<Playlist>,
     aiMixes: List<AiMix>,
     topArtists: List<Artist>,
@@ -55,6 +56,8 @@ fun HomeScreen(
     onMixClick: (AiMix) -> Unit,
     onTogglePlay: () -> Unit,
     onExpandPlayer: () -> Unit,
+    userName: String? = null,
+    greetingEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val colors = LocalAbstraColors.current
@@ -69,6 +72,8 @@ fun HomeScreen(
         // ─────────────────────────────────────────────────────────────
         item {
             GreetingHeroCard(
+                userName = userName,
+                greetingEnabled = greetingEnabled,
                 dailyListeningTimeStr = formatListeningTime(lifetimeListeningMs),
                 totalSongs = totalSongs,
                 favoriteCount = favoriteCount,
@@ -152,6 +157,60 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .width(110.dp)
                                     .clickable { onSongClick(song, recentlyAdded) }
+                            ) {
+                                ThematicAlbumArt(
+                                    trackId = song.id,
+                                    title = song.title,
+                                    artist = song.artist,
+                                    uriString = song.uriString,
+                                    modifier = Modifier
+                                        .size(110.dp)
+                                        .shadow(6.dp, RoundedCornerShape(18.dp), spotColor = colors.primary.copy(alpha = 0.25f))
+                                        .clip(RoundedCornerShape(18.dp)),
+                                    cornerRadius = 18.dp
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = song.title,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = colors.textHeading,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = song.artist,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = colors.textMuted,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 3.5 MOST PLAYED
+        // ─────────────────────────────────────────────────────────────
+        if (mostPlayed.isNotEmpty()) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "MOST PLAYED",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = colors.textHeading,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        contentPadding = PaddingValues(horizontal = 2.dp)
+                    ) {
+                        items(mostPlayed, key = { "mp_${it.id}" }) { song ->
+                            Column(
+                                modifier = Modifier
+                                    .width(110.dp)
+                                    .clickable { onSongClick(song, mostPlayed) }
                             ) {
                                 ThematicAlbumArt(
                                     trackId = song.id,
@@ -335,6 +394,8 @@ fun HomeScreen(
 
 @Composable
 fun GreetingHeroCard(
+    userName: String?,
+    greetingEnabled: Boolean,
     dailyListeningTimeStr: String,
     totalSongs: Int,
     favoriteCount: Int,
@@ -369,14 +430,24 @@ fun GreetingHeroCard(
                 .padding(24.dp)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                Text(
-                    text = greeting,
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = (-0.5).sp
-                    ),
-                    color = colors.textHeading
-                )
+                if (greetingEnabled) {
+                    Text(
+                        text = greeting,
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-0.5).sp
+                        ),
+                        color = colors.textHeading
+                    )
+                    if (!userName.isNullOrBlank()) {
+                        Text(
+                            text = userName,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = colors.textHeading.copy(alpha = 0.8f)
+                        )
+                    }
+                }
                 Spacer(Modifier.weight(1f))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     StatChip(Icons.Default.History, dailyListeningTimeStr, colors)

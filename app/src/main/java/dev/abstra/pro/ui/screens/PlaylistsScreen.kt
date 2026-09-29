@@ -46,7 +46,7 @@ fun PlaylistsScreen(
     onExportAllClick: () -> Unit,
     onExportPlaylistClick: (Playlist) -> Unit,
     onDeletePlaylistClick: (Playlist) -> Unit,
-    onSongClick: (Song) -> Unit,
+    onSongClick: (Song, List<Song>) -> Unit,
     onPlayAll: (List<Song>) -> Unit,
     onShuffleAll: (List<Song>) -> Unit,
     modifier: Modifier = Modifier
@@ -459,7 +459,7 @@ private fun SmartPlaylistDetailView(
     songs: List<Song>,
     currentSong: Song?,
     isPlaying: Boolean,
-    onSongClick: (Song) -> Unit,
+    onSongClick: (Song, List<Song>) -> Unit,
     onPlayAll: () -> Unit,
     onShuffleAll: () -> Unit,
     onBack: () -> Unit
@@ -548,7 +548,7 @@ private fun SmartPlaylistDetailView(
                     SongListItem(
                         song = song,
                         isPlaying = isPlaying && currentSong?.id == song.id,
-                        onClick = { onSongClick(song) },
+                        onClick = { onSongClick(song, songs) },
                         onFavoriteToggle = {}, // TODO: pass actual toggles
                         onOptionsClick = {}
                     )

@@ -163,6 +163,17 @@ class AudioEngine(private val context: Context) {
             onSongCompleted = {
                 scope.launch { handleSongCompletion() }
             },
+            onSeamlessTransition = { song ->
+                // PlaybackRouter handled gapless/crossfade, so we just update our state 
+                // to match the new song, WITHOUT triggering a new play request.
+                _currentSong.value = song
+                _duration.value = song.durationMs
+                val q = _queue.value
+                val newIdx = q.indexOfFirst { it.id == song.id }
+                if (newIdx != -1) {
+                    _currentIndex.value = newIdx
+                }
+            },
             onError = {
                 _isPlaying.value = false
                 scope.launch { delay(400); playNext() }

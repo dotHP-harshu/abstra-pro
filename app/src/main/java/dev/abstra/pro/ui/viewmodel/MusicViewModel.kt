@@ -190,6 +190,20 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val totalPlayCount: StateFlow<Int> = repository.totalPlayCount
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    // ── Settings ──
+    val userName: StateFlow<String?> = repository.appSettings.map { it.userName }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    
+    val greetingEnabled: StateFlow<Boolean> = repository.appSettings.map { it.greetingEnabled }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    fun setUserName(name: String?) = viewModelScope.launch { repository.setUserName(name) }
+    fun setGreetingEnabled(enabled: Boolean) = viewModelScope.launch { repository.setGreetingEnabled(enabled) }
+    fun markAskedForName() = viewModelScope.launch { repository.markAskedForName() }
+    
+    val hasAskedForName: StateFlow<Boolean> = repository.appSettings.map { it.hasAskedForName }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     // ── Recently Played ──
     private val _recentlyPlayedIds = MutableStateFlow<List<String>>(
         prefs.getString("recently_played_ids", "")
@@ -203,6 +217,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     ) { ids, songs ->
         ids.mapNotNull { id -> songs.find { it.id == id } }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    
+    val mostPlayed: StateFlow<List<Song>> = repository.observeMostPlayedSongs(20)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun addToRecentlyPlayed(songId: String) {
         val current = _recentlyPlayedIds.value

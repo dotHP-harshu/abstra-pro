@@ -18,6 +18,7 @@ class PlaybackRouter(
     private val scope: CoroutineScope,
     private val onSongStarted: (Song) -> Unit,
     private val onSongCompleted: () -> Unit,
+    private val onSeamlessTransition: (Song) -> Unit,
     private val onError: () -> Unit
 ) {
     private var activePlayer: MediaPlayer? = null
@@ -113,7 +114,10 @@ class PlaybackRouter(
         
         try {
             newPlayer.start()
-            nextSong?.let { onSongStarted(it) }
+            nextSong?.let { 
+                onSeamlessTransition(it) 
+                onSongStarted(it) 
+            }
         } catch (e: Exception) {
             Log.e("PlaybackRouter", "Failed to start crossfade player", e)
             return
@@ -140,7 +144,8 @@ class PlaybackRouter(
             fadingPlayer = null
             
             applyVolume(activePlayer, 1.0f)
-            onSongCompleted() // Tell AudioEngine the old song finished
+            // We already told AudioEngine via onSeamlessTransition that we moved forward.
+            // DO NOT call onSongCompleted(), it would cause AudioEngine to advance again.
         }
     }
     
@@ -157,7 +162,11 @@ class PlaybackRouter(
                 activePlayer?.release()
                 activePlayer = nextPlayer
                 nextPlayer = null
-                onSongCompleted()
+                nextSong?.let { 
+                    onSeamlessTransition(it) 
+                    onSongStarted(it)
+                }
+                // DONT call onSongCompleted here because we handled the transition seamlessly.
             } else {
                 onSongCompleted()
             }

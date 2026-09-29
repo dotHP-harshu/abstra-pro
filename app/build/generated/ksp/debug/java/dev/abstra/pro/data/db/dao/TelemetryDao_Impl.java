@@ -159,6 +159,53 @@ public final class TelemetryDao_Impl implements TelemetryDao {
   }
 
   @Override
+  public Flow<List<MostPlayedRow>> observeMostPlayed() {
+    final String _sql = "\n"
+            + "        SELECT songId, playCount, lastPlayedTimestamp, totalPlayedMs \n"
+            + "        FROM playback_telemetry \n"
+            + "        WHERE playCount > 0 \n"
+            + "        ORDER BY playCount DESC, lastPlayedTimestamp DESC \n"
+            + "        LIMIT 20\n"
+            + "    ";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
+    return CoroutinesRoom.createFlow(__db, false, new String[] {"playback_telemetry"}, new Callable<List<MostPlayedRow>>() {
+      @Override
+      @NonNull
+      public List<MostPlayedRow> call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfSongId = 0;
+          final int _cursorIndexOfPlayCount = 1;
+          final int _cursorIndexOfLastPlayedTimestamp = 2;
+          final int _cursorIndexOfTotalPlayedMs = 3;
+          final List<MostPlayedRow> _result = new ArrayList<MostPlayedRow>(_cursor.getCount());
+          while (_cursor.moveToNext()) {
+            final MostPlayedRow _item;
+            final String _tmpSongId;
+            _tmpSongId = _cursor.getString(_cursorIndexOfSongId);
+            final int _tmpPlayCount;
+            _tmpPlayCount = _cursor.getInt(_cursorIndexOfPlayCount);
+            final long _tmpLastPlayedTimestamp;
+            _tmpLastPlayedTimestamp = _cursor.getLong(_cursorIndexOfLastPlayedTimestamp);
+            final long _tmpTotalPlayedMs;
+            _tmpTotalPlayedMs = _cursor.getLong(_cursorIndexOfTotalPlayedMs);
+            _item = new MostPlayedRow(_tmpSongId,_tmpPlayCount,_tmpLastPlayedTimestamp,_tmpTotalPlayedMs);
+            _result.add(_item);
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+        }
+      }
+
+      @Override
+      protected void finalize() {
+        _statement.release();
+      }
+    });
+  }
+
+  @Override
   public Flow<List<PlaybackTelemetryEntity>> getAllTelemetry() {
     final String _sql = "SELECT * FROM playback_telemetry";
     final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);

@@ -5,8 +5,24 @@ import dev.abstra.pro.data.db.entities.MarkovTransitionEntity
 import dev.abstra.pro.data.db.entities.PlaybackTelemetryEntity
 import kotlinx.coroutines.flow.Flow
 
+data class MostPlayedRow(
+    val songId: String,
+    val playCount: Int,
+    val lastPlayedTimestamp: Long,
+    val totalPlayedMs: Long
+)
+
 @Dao
 interface TelemetryDao {
+    @Query("""
+        SELECT songId, playCount, lastPlayedTimestamp, totalPlayedMs 
+        FROM playback_telemetry 
+        WHERE playCount > 0 
+        ORDER BY playCount DESC, lastPlayedTimestamp DESC 
+        LIMIT 20
+    """)
+    fun observeMostPlayed(): Flow<List<MostPlayedRow>>
+
     @Query("SELECT * FROM playback_telemetry")
     fun getAllTelemetry(): Flow<List<PlaybackTelemetryEntity>>
 

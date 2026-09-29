@@ -119,11 +119,15 @@ enum class PlayerDesignStyle {
 // JSON EXPORT / IMPORT DATA CONTRACTS (SAF BACKUP)
 // ─────────────────────────────────────────────────────────────
 
-data class PlaylistExportData(
-    @SerializedName("version") val version: Int = 1,
+data class BackupData(
+    @SerializedName("version") val version: Int = 2,
     @SerializedName("exportTimestamp") val exportTimestamp: Long = System.currentTimeMillis(),
     @SerializedName("playlists") val playlists: List<PlaylistData>,
-    @SerializedName("settings") val settings: List<SettingEntry>? = null
+    @SerializedName("settings") val settings: List<SettingEntry>? = null,
+    @SerializedName("songOverrides") val songOverrides: List<dev.abstra.pro.data.db.entities.SongOverrideEntity> = emptyList(),
+    @SerializedName("appSettings") val appSettings: dev.abstra.pro.data.db.entities.SettingsEntity? = null,
+    @SerializedName("widgetPrefs") val widgetPrefs: dev.abstra.pro.data.db.entities.WidgetPrefsEntity? = null,
+    @SerializedName("customEqPresets") val customEqPresets: List<dev.abstra.pro.data.db.entities.CustomEqPresetEntity> = emptyList()
 )
 
 data class SettingEntry(

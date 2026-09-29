@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
@@ -112,6 +113,19 @@ class MainActivity : ComponentActivity() {
             val gaplessEnabled by viewModel.gaplessEnabled.collectAsState()
             val minDurationFilterSec by viewModel.minDurationFilterSec.collectAsState()
             val writePhysicalTags by viewModel.writePhysicalTags.collectAsState()
+            
+            val userName by viewModel.userName.collectAsState()
+            val greetingEnabled by viewModel.greetingEnabled.collectAsState()
+            val hasAskedForName by viewModel.hasAskedForName.collectAsState()
+            var showFirstRunNameDialog by remember { mutableStateOf(false) }
+
+            LaunchedEffect(hasAskedForName) {
+                if (!hasAskedForName) {
+                    kotlinx.coroutines.delay(500)
+                    showFirstRunNameDialog = true
+                    viewModel.markAskedForName()
+                }
+            }
 
             // Library data
             val allSongs by viewModel.allSongs.collectAsState()
@@ -220,11 +234,29 @@ class MainActivity : ComponentActivity() {
             AbstraTheme(appTheme = currentTheme) {
                 val colors = LocalAbstraColors.current
                 var selectedPlaylist by remember { mutableStateOf<dev.abstra.pro.data.model.Playlist?>(null) }
+                val coroutineScope = rememberCoroutineScope()
+                val pagerState = androidx.compose.foundation.pager.rememberPagerState(
+                    initialPage = currentTab.ordinal,
+                    pageCount = { MainNavigationTab.values().size }
+                )
+                val tabHistory = remember { mutableStateListOf(MainNavigationTab.HOME) }
+                val switchTab: (MainNavigationTab) -> Unit = { tab ->
+                    if (tab != currentTab) {
+                        if (tab == MainNavigationTab.HOME) {
+                            tabHistory.clear()
+                            tabHistory.add(MainNavigationTab.HOME)
+                        } else {
+                            if (tabHistory.size >= 16) tabHistory.removeAt(0)
+                            tabHistory.add(currentTab)
+                        }
+                        coroutineScope.launch { pagerState.animateScrollToPage(tab.ordinal) }
+                    }
+                }
                 
                 androidx.activity.compose.BackHandler(
                     enabled = isPlayerExpanded || isEqualizerOpen || isLyricsOpen || showQueueSheet || 
                               isSleepTimerDialogOpen || isCreatePlaylistDialogOpen || isOutputRoutePickerOpen || 
-                              selectedPlaylist != null || playlistPickerForSongs != null
+                              selectedPlaylist != null || playlistPickerForSongs != null || tabHistory.size > 1
                 ) {
                     when {
                         isCreatePlaylistDialogOpen -> viewModel.setCreatePlaylistDialogOpen(false)
@@ -236,6 +268,10 @@ class MainActivity : ComponentActivity() {
                         isEqualizerOpen -> viewModel.setEqualizerOpen(false)
                         selectedPlaylist != null -> selectedPlaylist = null
                         isPlayerExpanded -> viewModel.setPlayerExpanded(false)
+                        tabHistory.size > 1 -> {
+                            val previous = tabHistory.removeAt(tabHistory.lastIndex)
+                            coroutineScope.launch { pagerState.animateScrollToPage(previous.ordinal) }
+                        }
                     }
                 }
 
@@ -248,11 +284,35 @@ class MainActivity : ComponentActivity() {
                 ) {
                     // Main Content Scaffold
                     Column(modifier = Modifier.fillMaxSize()) {
-                        val coroutineScope = rememberCoroutineScope()
-                        val pagerState = androidx.compose.foundation.pager.rememberPagerState(
-                            initialPage = currentTab.ordinal,
-                            pageCount = { MainNavigationTab.values().size }
-                        )
+                        
+                        if (showFirstRunNameDialog) {
+                            var draft by remember { mutableStateOf(userName.orEmpty()) }
+                            AlertDialog(
+                                onDismissRequest = { showFirstRunNameDialog = false },
+                                title = { Text("What's your name?") },
+                                text = {
+                                    Column {
+                                        Text("Used in the greeting on the home tab.", color = colors.textSecondary, fontSize = 13.sp)
+                                        Spacer(Modifier.height(8.dp))
+                                        OutlinedTextField(
+                                            value = draft,
+                                            onValueChange = { if (it.length <= 30) draft = it },
+                                            singleLine = true,
+                                            placeholder = { Text("e.g. Harsh") }
+                                        )
+                                    }
+                                },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        viewModel.setUserName(draft.trim().ifBlank { null })
+                                        showFirstRunNameDialog = false
+                                    }) { Text("Save") }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showFirstRunNameDialog = false }) { Text("Skip") }
+                                }
+                            )
+                        }
 
                         // Single source of truth: pagerState drives the tab highlight.
                         LaunchedEffect(pagerState.currentPage) {
@@ -265,11 +325,7 @@ class MainActivity : ComponentActivity() {
                         if (showTabBar) {
                             TopSegmentedTabs(
                                 selectedTab = MainNavigationTab.values()[pagerState.currentPage],
-                                onTabSelected = { tab ->
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(tab.ordinal)
-                                    }
-                                },
+                                onTabSelected = { tab -> switchTab(tab) },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -280,9 +336,7 @@ class MainActivity : ComponentActivity() {
                                 currentPage = pagerState.currentPage,
                                 pageCount = MainNavigationTab.values().size,
                                 colors = colors,
-                                onTabRequested = { page ->
-                                    coroutineScope.launch { pagerState.animateScrollToPage(page) }
-                                },
+                                onTabRequested = { page -> switchTab(MainNavigationTab.values()[page]) },
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -302,6 +356,7 @@ class MainActivity : ComponentActivity() {
                                         isPlaying = isPlaying,
                                         recentlyPlayed = recentlyPlayed,
                                         recentlyAdded = visibleSongs.sortedByDescending { it.dateAdded }.take(10),
+                                        mostPlayed = viewModel.mostPlayed.collectAsState().value,
                                         playlists = playlists,
                                         aiMixes = aiMixes,
                                         topArtists = emptyList(),
@@ -317,7 +372,9 @@ class MainActivity : ComponentActivity() {
                                             viewModel.playQueue(mix.songs)
                                         },
                                         onTogglePlay = { viewModel.togglePlayPause() },
-                                        onExpandPlayer = { viewModel.setPlayerExpanded(true) }
+                                        onExpandPlayer = { viewModel.setPlayerExpanded(true) },
+                                        userName = userName,
+                                        greetingEnabled = greetingEnabled
                                     )
                                 }
                                 MainNavigationTab.SONGS -> {
@@ -370,7 +427,7 @@ class MainActivity : ComponentActivity() {
                                         onExportAllClick = { exportLauncher.launch("abstra_pro_backup.json") },
                                         onExportPlaylistClick = { pl -> exportLauncher.launch("${pl.name}.json") },
                                         onDeletePlaylistClick = { viewModel.deletePlaylist(it) },
-                                        onSongClick = { viewModel.playSong(it) },
+                                        onSongClick = { song, ctx -> viewModel.playSong(song, ctx) },
                                         onPlayAll = { viewModel.playQueue(it) },
                                         onShuffleAll = { viewModel.shuffleQueue(it) }
                                     )
@@ -438,7 +495,11 @@ class MainActivity : ComponentActivity() {
                                         onExportBackup = { exportLauncher.launch("abstra_pro_backup.json") },
                                         onImportBackup = { importLauncher.launch(arrayOf("application/json")) },
                                         onRescanLibrary = { viewModel.rescanLibrary() },
-                                        onSelectFolder = { folderPickerLauncher.launch(Uri.EMPTY) }
+                                        onSelectFolder = { folderPickerLauncher.launch(Uri.EMPTY) },
+                                        userName = viewModel.userName.collectAsState().value,
+                                        onUserNameChange = { viewModel.setUserName(it) },
+                                        greetingEnabled = viewModel.greetingEnabled.collectAsState().value,
+                                        onGreetingEnabledChange = { viewModel.setGreetingEnabled(it) }
                                     )
                                 }
                                 }
