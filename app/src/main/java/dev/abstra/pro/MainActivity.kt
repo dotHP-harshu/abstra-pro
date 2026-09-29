@@ -220,6 +220,24 @@ class MainActivity : ComponentActivity() {
             AbstraTheme(appTheme = currentTheme) {
                 val colors = LocalAbstraColors.current
                 var selectedPlaylist by remember { mutableStateOf<dev.abstra.pro.data.model.Playlist?>(null) }
+                
+                androidx.activity.compose.BackHandler(
+                    enabled = isPlayerExpanded || isEqualizerOpen || isLyricsOpen || showQueueSheet || 
+                              isSleepTimerDialogOpen || isCreatePlaylistDialogOpen || isOutputRoutePickerOpen || 
+                              selectedPlaylist != null || playlistPickerForSongs != null
+                ) {
+                    when {
+                        isCreatePlaylistDialogOpen -> viewModel.setCreatePlaylistDialogOpen(false)
+                        playlistPickerForSongs != null -> viewModel.closePlaylistPicker()
+                        isSleepTimerDialogOpen -> viewModel.setSleepTimerDialogOpen(false)
+                        isOutputRoutePickerOpen -> viewModel.setOutputRoutePickerOpen(false)
+                        showQueueSheet -> showQueueSheet = false
+                        isLyricsOpen -> viewModel.setLyricsOpen(false)
+                        isEqualizerOpen -> viewModel.setEqualizerOpen(false)
+                        selectedPlaylist != null -> selectedPlaylist = null
+                        isPlayerExpanded -> viewModel.setPlayerExpanded(false)
+                    }
+                }
 
                 Box(
                     modifier = Modifier
@@ -291,7 +309,7 @@ class MainActivity : ComponentActivity() {
                                         totalSongs = allSongs.size,
                                         favoriteCount = allSongs.count { it.isFavorite },
                                         lifetimeListeningMs = lifetimeMs,
-                                        onSongClick = { viewModel.playSong(it) },
+                                        onSongClick = { song, list -> viewModel.playSong(song, list) },
                                         onPlaylistClick = { pl ->
                                             viewModel.setTab(MainNavigationTab.PLAYLISTS)
                                         },

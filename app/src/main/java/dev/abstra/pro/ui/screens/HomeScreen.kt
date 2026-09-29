@@ -50,7 +50,7 @@ fun HomeScreen(
     totalSongs: Int,
     favoriteCount: Int,
     lifetimeListeningMs: Long,
-    onSongClick: (Song) -> Unit,
+    onSongClick: (Song, List<Song>) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
     onMixClick: (AiMix) -> Unit,
     onTogglePlay: () -> Unit,
@@ -98,7 +98,7 @@ fun HomeScreen(
                             Column(
                                 modifier = Modifier
                                     .width(110.dp)
-                                    .clickable { onSongClick(song) }
+                                    .clickable { onSongClick(song, recentlyPlayed) }
                             ) {
                                 ThematicAlbumArt(
                                     trackId = song.id,
@@ -151,7 +151,7 @@ fun HomeScreen(
                             Column(
                                 modifier = Modifier
                                     .width(110.dp)
-                                    .clickable { onSongClick(song) }
+                                    .clickable { onSongClick(song, recentlyAdded) }
                             ) {
                                 ThematicAlbumArt(
                                     trackId = song.id,

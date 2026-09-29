@@ -540,7 +540,19 @@ fun IsolatedPlaybackSlider(
     onSeekTo: (Long) -> Unit
 ) {
     var userSeekingPosition by remember { mutableStateOf<Long?>(null) }
-    val effectivePosition = userSeekingPosition ?: currentPosition
+    
+    // Smooth over the gap between dropping the slider and the engine catching up
+    var lastSeekTime by remember { mutableStateOf(0L) }
+    var lastSeekPosition by remember { mutableStateOf(0L) }
+    val isRecentlySeeked = System.currentTimeMillis() - lastSeekTime < 800L
+    
+    val effectivePosition = if (userSeekingPosition != null) {
+        userSeekingPosition!!
+    } else if (isRecentlySeeked) {
+        lastSeekPosition 
+    } else {
+        currentPosition
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Slider(
@@ -549,7 +561,11 @@ fun IsolatedPlaybackSlider(
                 userSeekingPosition = pos.toLong()
             },
             onValueChangeFinished = {
-                userSeekingPosition?.let { onSeekTo(it) }
+                userSeekingPosition?.let { 
+                    onSeekTo(it) 
+                    lastSeekPosition = it
+                    lastSeekTime = System.currentTimeMillis()
+                }
                 userSeekingPosition = null
             },
             valueRange = 0f..duration.toFloat().coerceAtLeast(1f),

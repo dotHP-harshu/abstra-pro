@@ -26,8 +26,7 @@ class AudioEngine(private val context: Context) {
     private val proceduralSynth = ProceduralAudioGenerator()
 
     @Volatile
-    private var mediaPlayer: MediaPlayer? = null
-    private var secondaryMediaPlayer: MediaPlayer? = null
+    private var playbackRouter: PlaybackRouter? = null
 
     private val consecutiveFailures = java.util.concurrent.atomic.AtomicInteger(0)
 
@@ -78,7 +77,7 @@ class AudioEngine(private val context: Context) {
     fun setVolume(v: Float) {
         val clamped = v.coerceIn(0f, 1f)
         _currentVolume.value = clamped
-        try { mediaPlayer?.setVolume(clamped, clamped) } catch (_: Exception) {}
+        try { playbackRouter?.setVolume(clamped) } catch (_: Exception) {}
         proceduralSynth.setVolume(clamped)
     }
 
@@ -138,7 +137,7 @@ class AudioEngine(private val context: Context) {
     private var lastPreviousClickTimeMs = 0L
     private var isInForeground = true
 
-    val currentSessionId: Int get() = mediaPlayer?.audioSessionId ?: 0
+    val currentSessionId: Int get() = playbackRouter?.getAudioSessionId() ?: 0
 
     // Noisy broadcast receiver (smooth 200ms fade on headphone unplug)
     private val noisyReceiver = object : BroadcastReceiver() {
@@ -152,6 +151,24 @@ class AudioEngine(private val context: Context) {
     init {
         val filter = IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
         context.registerReceiver(noisyReceiver, filter)
+        
+        playbackRouter = PlaybackRouter(
+            context = context,
+            scope = scope,
+            onSongStarted = { s -> 
+                _isPlaying.value = true
+                onSongStarted?.invoke(s)
+                onPlaybackStateChange?.invoke(true)
+            },
+            onSongCompleted = {
+                scope.launch { handleSongCompletion() }
+            },
+            onError = {
+                _isPlaying.value = false
+                scope.launch { delay(400); playNext() }
+            }
+        )
+        
         startProgressTracker()
     }
 
@@ -291,58 +308,29 @@ class AudioEngine(private val context: Context) {
         proceduralSynth.stop()
         if (!requestAudioFocus()) return
 
-        try {
-            stopNativePlayers()
-            val player = MediaPlayer().apply {
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .build()
-                )
-                setDataSource(context, Uri.parse(song.uriString))
-                setOnPreparedListener { mp ->
-                    if (mediaPlayer !== this@apply) return@setOnPreparedListener
-                    val s = _pendingSong.value ?: return@setOnPreparedListener
-                    _currentSong.value = s
-                    consecutiveFailures.set(0)
-                    
-                    // Attach hardware effects
-                    effectsManager.attachSession(mp.audioSessionId)
-                    applyBalance()
-                    applySpeed()
-
-                    if (autoPlay) {
-                        mp.start()
-                        _isPlaying.value = true
-                        onSongStarted?.invoke(s)
-                        onPlaybackStateChange?.invoke(true)
-                    } else {
-                        _isPlaying.value = false
-                        onPlaybackStateChange?.invoke(false)
-                    }
-                }
-                setOnErrorListener { _, what, extra ->
-                    Log.e("AudioEngine", "MediaPlayer error what=$what extra=$extra")
-                    _isPlaying.value = false
-                    scope.launch {
-                        delay(400)
-                        playNext()
-                    }
-                    true
-                }
-                prepareAsync()
-            }
-
-            mediaPlayer = player
-
-            player.setOnCompletionListener {
-                scope.launch { handleSongCompletion() }
-            }
-        } catch (e: Exception) {
-            Log.e("AudioEngine", "Error playing song: ${song.title}", e)
+        stopNativePlayers()
+        consecutiveFailures.set(0)
+        
+        val router = playbackRouter ?: return
+        
+        _currentSong.value = song
+        
+        router.setVolume(_currentVolume.value)
+        router.setSpeed(_playbackSpeed.value)
+        router.crossfadeSeconds = _crossfadeSeconds.value
+        router.isGaplessEnabled = _gaplessEnabled.value
+        
+        router.playSong(song, autoPlay)
+        
+        if (!autoPlay) {
             _isPlaying.value = false
-            scope.launch { delay(400); playNext() }
+            onPlaybackStateChange?.invoke(false)
+        }
+        
+        // Let the eq attach when ready. We poll occasionally since router hides inner players
+        scope.launch {
+            delay(300)
+            effectsManager.attachSession(router.getAudioSessionId())
         }
     }
 
@@ -372,7 +360,7 @@ class AudioEngine(private val context: Context) {
         }
 
         try {
-            mediaPlayer?.start()
+            playbackRouter?.resume()
             _isPlaying.value = true
             onPlaybackStateChange?.invoke(true)
         } catch (_: Exception) {}
@@ -384,7 +372,7 @@ class AudioEngine(private val context: Context) {
         onPlaybackStateChange?.invoke(false)
         proceduralSynth.pause()
         try {
-            mediaPlayer?.pause()
+            playbackRouter?.pause()
         } catch (_: Exception) {}
     }
 
@@ -404,7 +392,7 @@ class AudioEngine(private val context: Context) {
         }
 
         try {
-            mediaPlayer?.seekTo(positionMs.toInt())
+            playbackRouter?.seekTo(positionMs)
         } catch (_: Exception) {}
     }
 
@@ -524,10 +512,12 @@ class AudioEngine(private val context: Context) {
         val valid = seconds.coerceIn(0, 12)
         crossfadeDurationSec = valid
         _crossfadeSeconds.value = valid
+        playbackRouter?.crossfadeSeconds = valid
     }
 
     fun setGapless(enabled: Boolean) {
         isGaplessEnabled = enabled
+        playbackRouter?.isGaplessEnabled = enabled
     }
 
     fun setPlaybackSpeed(speed: Float) {
@@ -537,16 +527,7 @@ class AudioEngine(private val context: Context) {
     }
 
     private fun applySpeed() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            try {
-                mediaPlayer?.let {
-                    val params = it.playbackParams
-                    params.speed = _playbackSpeed.value
-                    params.pitch = _playbackSpeed.value
-                    it.playbackParams = params
-                }
-            } catch (_: Exception) {}
-        }
+        playbackRouter?.setSpeed(_playbackSpeed.value)
     }
 
     fun setBalancePan(pan: Float) {
@@ -557,8 +538,9 @@ class AudioEngine(private val context: Context) {
     private fun applyBalance() {
         val (left, right) = effectsManager.getChannelVolumes()
         try {
-            mediaPlayer?.setVolume(left, right)
-            proceduralSynth.setVolume((left + right) / 2f)
+            val v = (left + right) / 2f
+            playbackRouter?.setVolume(v)
+            proceduralSynth.setVolume(v)
         } catch (_: Exception) {}
     }
 
@@ -568,12 +550,11 @@ class AudioEngine(private val context: Context) {
 
     private fun smoothFadeAndPause() {
         scope.launch {
-            val (origL, origR) = effectsManager.getChannelVolumes()
             val steps = 10
             for (i in steps downTo 0) {
                 val factor = i.toFloat() / steps
                 try {
-                    mediaPlayer?.setVolume(origL * factor, origR * factor)
+                    playbackRouter?.setVolume(factor)
                 } catch (_: Exception) {}
                 delay(20)
             }
@@ -607,9 +588,9 @@ class AudioEngine(private val context: Context) {
         progressJob?.cancel()
         progressJob = scope.launch {
             while (isActive) {
-                if (mediaPlayer != null) {
+                if (playbackRouter != null) {
                     try {
-                        val isActuallyPlaying = mediaPlayer?.isPlaying == true
+                        val isActuallyPlaying = playbackRouter?.isPlaying() == true
                         if (_isPlaying.value && !isActuallyPlaying) {
                             _isPlaying.value = false
                             onPlaybackStateChange?.invoke(false)
@@ -618,7 +599,18 @@ class AudioEngine(private val context: Context) {
                             onPlaybackStateChange?.invoke(true)
                         }
                         if (isActuallyPlaying) {
-                            _currentPosition.value = mediaPlayer?.currentPosition?.toLong() ?: 0L
+                            val pos = playbackRouter?.getCurrentPosition() ?: 0L
+                            _currentPosition.value = pos
+                            playbackRouter?.checkCrossfade(pos, _duration.value)
+                            
+                            // Prepare next track for gapless/crossfade if needed
+                            if (_duration.value > 0 && (_duration.value - pos) < 20000L) { // prepare 20s in advance
+                                val q = _queue.value
+                                val nextIdx = _currentIndex.value + 1
+                                if (nextIdx < q.size) {
+                                    playbackRouter?.prepareNextTrack(q[nextIdx])
+                                }
+                            }
                         }
                     } catch (_: Exception) {}
                 }
@@ -632,7 +624,7 @@ class AudioEngine(private val context: Context) {
         when (focus) {
             AudioManager.AUDIOFOCUS_GAIN -> {
                 // We got focus back. Restore volume and resume if user wanted playback.
-                try { mediaPlayer?.setVolume(1.0f, 1.0f) } catch (_: Exception) {}
+                try { playbackRouter?.setVolume(1.0f) } catch (_: Exception) {}
                 proceduralSynth.setVolume(1.0f)
                 if (_shouldBePlaying) resume()
             }
@@ -640,7 +632,7 @@ class AudioEngine(private val context: Context) {
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
                 // Another app wants us to duck (e.g., notification, voice message).
                 // Always honor this — ducking is cheap and non-disruptive.
-                try { mediaPlayer?.setVolume(0.2f, 0.2f) } catch (_: Exception) {}
+                try { playbackRouter?.setVolume(0.2f) } catch (_: Exception) {}
                 proceduralSynth.setVolume(0.2f)
             }
 
@@ -648,7 +640,7 @@ class AudioEngine(private val context: Context) {
                 // Another app wants temporary exclusive focus (e.g., phone call, voice note).
                 if (_shareAudioFocusEnabled.value) {
                     // User wants us to share: duck instead of pausing.
-                    try { mediaPlayer?.setVolume(0.2f, 0.2f) } catch (_: Exception) {}
+                    try { playbackRouter?.setVolume(0.2f) } catch (_: Exception) {}
                     proceduralSynth.setVolume(0.2f)
                 } else {
                     // Default: pause and remember intent to resume.
@@ -663,7 +655,7 @@ class AudioEngine(private val context: Context) {
                     // User wants us to share: ignore and keep playing.
                     // Both streams mix; user hears both. Set our volume to half so
                     // the user can still hear YouTube clearly.
-                    try { mediaPlayer?.setVolume(0.5f, 0.5f) } catch (_: Exception) {}
+                    try { playbackRouter?.setVolume(0.5f) } catch (_: Exception) {}
                     proceduralSynth.setVolume(0.5f)
                 } else {
                     // Default: pause.
@@ -704,10 +696,8 @@ class AudioEngine(private val context: Context) {
 
     private fun stopNativePlayers() {
         try {
-            mediaPlayer?.stop()
-            mediaPlayer?.release()
+            playbackRouter?.stop()
         } catch (_: Exception) {}
-        mediaPlayer = null
     }
 
     fun release() {

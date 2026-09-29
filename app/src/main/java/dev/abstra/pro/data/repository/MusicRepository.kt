@@ -302,7 +302,7 @@ class MusicRepository(
     // PLAYLIST BACKUP / RESTORE VIA STORAGE ACCESS FRAMEWORK (JSON)
     // ─────────────────────────────────────────────────────────────
 
-    suspend fun exportPlaylists(outputStream: OutputStream): Boolean = withContext(Dispatchers.IO) {
+    suspend fun exportPlaylists(outputStream: OutputStream, settings: List<SettingEntry>? = null): Boolean = withContext(Dispatchers.IO) {
         try {
             val allPl = playlistDao.getAllPlaylists().first()
             val exportList = mutableListOf<PlaylistData>()
@@ -321,7 +321,7 @@ class MusicRepository(
                 exportList.add(PlaylistData(name = pl.name, description = pl.description, songs = exportSongs))
             }
 
-            val exportData = PlaylistExportData(playlists = exportList)
+            val exportData = PlaylistExportData(playlists = exportList, settings = settings)
             val jsonString = gson.toJson(exportData)
             outputStream.bufferedWriter().use { it.write(jsonString) }
             true
@@ -331,10 +331,10 @@ class MusicRepository(
         }
     }
 
-    suspend fun importPlaylists(inputStream: InputStream): Boolean = withContext(Dispatchers.IO) {
+    suspend fun importPlaylists(inputStream: InputStream): Pair<Boolean, List<SettingEntry>?> = withContext(Dispatchers.IO) {
         try {
             val jsonString = inputStream.bufferedReader().use { it.readText() }
-            val importData = gson.fromJson(jsonString, PlaylistExportData::class.java) ?: return@withContext false
+            val importData = gson.fromJson(jsonString, PlaylistExportData::class.java) ?: return@withContext false to null
             val currentSongs = libraryDao.getAllSongs().first()
 
             for (pl in importData.playlists) {
@@ -353,10 +353,10 @@ class MusicRepository(
                     }
                 }
             }
-            true
+            true to importData.settings
         } catch (e: Exception) {
             Log.e("MusicRepository", "Failed to import playlists", e)
-            false
+            false to null
         }
     }
 

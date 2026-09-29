@@ -20,6 +20,7 @@ import dev.abstra.pro.ui.theme.AppTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
@@ -136,8 +137,17 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // ── Audio Engine StateFlows Exposed to UI ──
+    private val _optimisticFavoriteState = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+
     private val _currentSong = MutableStateFlow<Song?>(null)
-    val currentSong: StateFlow<Song?> = _currentSong.asStateFlow()
+    val currentSong: StateFlow<Song?> = combine(_currentSong, _optimisticFavoriteState) { current, optimistic ->
+        if (current == null) null
+        else {
+            val opt = optimistic[current.id]
+            if (opt != null) current.copy(isFavorite = opt) else current
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    
     private val _pendingSong = MutableStateFlow<Song?>(null)
     val pendingSong: StateFlow<Song?> = _pendingSong.asStateFlow()
     private val _isPlaying = MutableStateFlow(false)
@@ -269,6 +279,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _firstSongsByPlaylist = MutableStateFlow<Map<Long, Song?>>(emptyMap())
     val firstSongsByPlaylist: StateFlow<Map<Long, Song?>> = _firstSongsByPlaylist.asStateFlow()
+
+    // Optimistic favorite state override (null = use DB value)
+
 
     fun loadPlaylistFirstSongs(playlists: List<Playlist>) {
         viewModelScope.launch {
@@ -482,8 +495,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     // ── Library & Playlist Operations ──
     fun toggleFavorite(song: Song) {
+        val nextState = !song.isFavorite
+        _optimisticFavoriteState.value = _optimisticFavoriteState.value + (song.id to nextState)
         viewModelScope.launch {
             repository.toggleFavorite(song.id, song.isFavorite)
+            // Once the DB write returns and allSongs emits, we could drop the override,
+            // but for simplicity we can let it stick around or clear it when allSongs updates.
         }
     }
 
@@ -612,14 +629,47 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     // ── SAF JSON Backup / Restore ──
     fun exportBackup(outputStream: OutputStream) {
+        val settings = prefs.all.mapNotNull { (key, value) ->
+            when (value) {
+                is String -> dev.abstra.pro.data.model.SettingEntry(key, "string", value)
+                is Boolean -> dev.abstra.pro.data.model.SettingEntry(key, "boolean", value.toString())
+                is Int -> dev.abstra.pro.data.model.SettingEntry(key, "int", value.toString())
+                is Long -> dev.abstra.pro.data.model.SettingEntry(key, "long", value.toString())
+                is Float -> dev.abstra.pro.data.model.SettingEntry(key, "float", value.toString())
+                else -> null
+            }
+        }
         viewModelScope.launch(Dispatchers.IO) {
-            repository.exportPlaylists(outputStream)
+            repository.exportPlaylists(outputStream, settings)
         }
     }
 
     fun importBackup(inputStream: InputStream) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.importPlaylists(inputStream)
+            val (success, settings) = repository.importPlaylists(inputStream)
+            if (success && settings != null) {
+                val editor = prefs.edit()
+                for (entry in settings) {
+                    when (entry.type) {
+                        "string" -> editor.putString(entry.key, entry.value)
+                        "boolean" -> editor.putBoolean(entry.key, entry.value.toBoolean())
+                        "int" -> entry.value.toIntOrNull()?.let { editor.putInt(entry.key, it) }
+                        "long" -> entry.value.toLongOrNull()?.let { editor.putLong(entry.key, it) }
+                        "float" -> entry.value.toFloatOrNull()?.let { editor.putFloat(entry.key, it) }
+                    }
+                }
+                editor.apply()
+                // Restart app or reload specific values is necessary for full effect,
+                // but we can manually refresh some observable flows right away.
+                withContext(Dispatchers.Main) {
+                    _repeatMode.value = runCatching { dev.abstra.pro.data.model.RepeatMode.valueOf(prefs.getString("repeat_mode", dev.abstra.pro.data.model.RepeatMode.REPEAT_ALL.name)!!) }.getOrDefault(dev.abstra.pro.data.model.RepeatMode.REPEAT_ALL)
+                    _isShuffle.value = prefs.getBoolean("shuffle_enabled", false)
+                    _crossfadeSeconds.value = prefs.getInt("crossfade_seconds", 0)
+                    _gaplessEnabled.value = prefs.getBoolean("gapless_enabled", true)
+                    engine?.setCrossfade(_crossfadeSeconds.value)
+                    engine?.setGapless(_gaplessEnabled.value)
+                }
+            }
         }
     }
 

@@ -122,7 +122,14 @@ enum class PlayerDesignStyle {
 data class PlaylistExportData(
     @SerializedName("version") val version: Int = 1,
     @SerializedName("exportTimestamp") val exportTimestamp: Long = System.currentTimeMillis(),
-    @SerializedName("playlists") val playlists: List<PlaylistData>
+    @SerializedName("playlists") val playlists: List<PlaylistData>,
+    @SerializedName("settings") val settings: List<SettingEntry>? = null
+)
+
+data class SettingEntry(
+    @SerializedName("key") val key: String,
+    @SerializedName("type") val type: String,
+    @SerializedName("value") val value: String
 )
 
 data class PlaylistData(
