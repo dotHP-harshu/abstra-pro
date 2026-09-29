@@ -120,14 +120,31 @@ enum class PlayerDesignStyle {
 // ─────────────────────────────────────────────────────────────
 
 data class BackupData(
-    @SerializedName("version") val version: Int = 2,
+    @SerializedName("version") val version: Int = 3,
     @SerializedName("exportTimestamp") val exportTimestamp: Long = System.currentTimeMillis(),
     @SerializedName("playlists") val playlists: List<PlaylistData>,
     @SerializedName("settings") val settings: List<SettingEntry>? = null,
     @SerializedName("songOverrides") val songOverrides: List<dev.abstra.pro.data.db.entities.SongOverrideEntity> = emptyList(),
     @SerializedName("appSettings") val appSettings: dev.abstra.pro.data.db.entities.SettingsEntity? = null,
     @SerializedName("widgetPrefs") val widgetPrefs: dev.abstra.pro.data.db.entities.WidgetPrefsEntity? = null,
-    @SerializedName("customEqPresets") val customEqPresets: List<dev.abstra.pro.data.db.entities.CustomEqPresetEntity> = emptyList()
+    @SerializedName("customEqPresets") val customEqPresets: List<dev.abstra.pro.data.db.entities.CustomEqPresetEntity> = emptyList(),
+    @SerializedName("telemetry") val telemetry: List<TelemetrySnapshot> = emptyList(),
+    @SerializedName("favoriteSongIds") val favoriteSongIds: List<String> = emptyList(),
+    @SerializedName("recentlyPlayedOrder") val recentlyPlayedOrder: List<String> = emptyList(),
+    @SerializedName("recentlyAddedOrder") val recentlyAddedOrder: List<String> = emptyList(),
+    @SerializedName("excludedFolderPaths") val excludedFolderPaths: List<String> = emptyList(),
+    @SerializedName("userName") val userName: String? = null,
+    @SerializedName("greetingEnabled") val greetingEnabled: Boolean = true,
+    @SerializedName("playCounts") val playCounts: Map<String, Int> = emptyMap(),
+    @SerializedName("lastPlayedAt") val lastPlayedAt: Map<String, Long> = emptyMap()
+)
+
+data class TelemetrySnapshot(
+    @SerializedName("songId") val songId: String,
+    @SerializedName("playCount") val playCount: Int,
+    @SerializedName("lastPlayedAt") val lastPlayedAt: Long,
+    @SerializedName("totalPlayedMs") val totalPlayedMs: Long,
+    @SerializedName("skippedCount") val skippedCount: Int
 )
 
 data class SettingEntry(

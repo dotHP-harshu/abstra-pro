@@ -352,13 +352,30 @@ class MusicRepository(
             val widgetPrefs = settingsDao.getWidgetPrefs().first()
             val customPresets = settingsDao.getCustomPresets().first()
 
+            val telemetry = telemetryDao.getAllTelemetrySync()
+            val favoriteIds = overrides.filter { it.isFavorite }.map { it.songId }
+            val prefs = context.getSharedPreferences("abstra_prefs", Context.MODE_PRIVATE)
+            val recentlyPlayed = prefs.getString("recently_played_ids", "")?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+            val recentlyAdded = libraryDao.getAllSongs().first().sortedByDescending { it.dateAdded }.map { it.id }
+            val excludedFolders = prefs.getStringSet("excluded_folders", emptySet())?.toList() ?: emptyList()
+
             val exportData = BackupData(
+                version = 3,
                 playlists = exportList,
                 settings = settings,
                 songOverrides = overrides,
                 appSettings = appSettings,
                 widgetPrefs = widgetPrefs,
-                customEqPresets = customPresets
+                customEqPresets = customPresets,
+                telemetry = telemetry.map { TelemetrySnapshot(it.songId, it.playCount, it.lastPlayedTimestamp, it.totalPlayedMs, it.fastSkips) },
+                favoriteSongIds = favoriteIds,
+                recentlyPlayedOrder = recentlyPlayed,
+                recentlyAddedOrder = recentlyAdded,
+                excludedFolderPaths = excludedFolders,
+                userName = appSettings?.userName,
+                greetingEnabled = appSettings?.greetingEnabled ?: true,
+                playCounts = telemetry.associate { it.songId to it.playCount },
+                lastPlayedAt = telemetry.associate { it.songId to it.lastPlayedTimestamp }
             )
             val jsonString = gson.toJson(exportData)
             outputStream.bufferedWriter().use { it.write(jsonString) }
@@ -396,6 +413,34 @@ class MusicRepository(
             importData.appSettings?.let { settingsDao.saveSettings(it) }
             importData.widgetPrefs?.let { settingsDao.saveWidgetPrefs(it) }
             importData.customEqPresets.forEach { settingsDao.insertCustomPreset(it) }
+            
+            // v3 Restore
+            if (importData.version >= 3) {
+                importData.telemetry.forEach { t ->
+                    val entity = PlaybackTelemetryEntity(
+                        songId = t.songId,
+                        playCount = t.playCount,
+                        lastPlayedTimestamp = t.lastPlayedAt,
+                        totalPlayedMs = t.totalPlayedMs,
+                        fastSkips = t.skippedCount
+                    )
+                    telemetryDao.saveTelemetry(entity)
+                }
+                
+                val prefs = context.getSharedPreferences("abstra_prefs", Context.MODE_PRIVATE)
+                val editor = prefs.edit()
+                
+                if (importData.recentlyPlayedOrder.isNotEmpty()) {
+                    editor.putString("recently_played_ids", importData.recentlyPlayedOrder.joinToString(","))
+                }
+                
+                if (importData.excludedFolderPaths.isNotEmpty()) {
+                    editor.putStringSet("excluded_folders", importData.excludedFolderPaths.toSet())
+                }
+                
+                editor.apply()
+            }
+            
             true to importData.settings
         } catch (e: Exception) {
             Log.e("MusicRepository", "Failed to import playlists", e)

@@ -46,8 +46,6 @@ fun SettingsScreen(
     onShowTabBarToggle: (Boolean) -> Unit,
     appName: String,
     onAppNameChange: (String) -> Unit,
-    crossfadeSeconds: Int,
-    onCrossfadeChange: (Int) -> Unit,
     gaplessEnabled: Boolean,
     onGaplessToggle: (Boolean) -> Unit,
     minDurationFilterSec: Int,
@@ -207,26 +205,6 @@ fun SettingsScreen(
                                 colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = colors.primary)
                             )
                         }
-
-                        HorizontalDivider(color = colors.border.copy(alpha = 0.5f))
-
-                        // Crossfade Duration
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Crossfade Duration", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textPrimary)
-                                Text("${crossfadeSeconds}s", fontWeight = FontWeight.Bold, color = colors.primary, fontSize = 13.sp)
-                            }
-                            Slider(
-                                value = crossfadeSeconds.toFloat(),
-                                onValueChange = { onCrossfadeChange(it.toInt()) },
-                                valueRange = 0f..10f,
-                                steps = 9,
-                                colors = SliderDefaults.colors(thumbColor = colors.primary, activeTrackColor = colors.primary)
-                            )
-                        }
                     }
                 }
             }
@@ -357,7 +335,7 @@ fun SettingsScreen(
                 SettingsSection(title = "Playlists & SAF Backup") {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
-                            text = "Export and restore your playlists and custom tags to offline JSON files without cloud sync. (Experimental - Will be available in future versions)",
+                            text = "Export and restore your playlists, custom tags, settings, theme, and listening history to offline JSON files.",
                             fontSize = 12.sp,
                             color = colors.textSecondary
                         )
@@ -367,8 +345,8 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Button(
-                                onClick = { },
-                                enabled = false,
+                                onClick = onExportBackup,
+                                enabled = true,
                                 shape = RoundedCornerShape(14.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = colors.primary,
@@ -382,8 +360,8 @@ fun SettingsScreen(
                             }
 
                             FilledTonalButton(
-                                onClick = { },
-                                enabled = false,
+                                onClick = onImportBackup,
+                                enabled = true,
                                 shape = RoundedCornerShape(14.dp),
                                 colors = ButtonDefaults.filledTonalButtonColors(
                                     containerColor = colors.bgSurface,

@@ -65,9 +65,6 @@ class AudioEngine(private val context: Context) {
     private val _playbackSpeed = MutableStateFlow(1.0f)
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
 
-    private val _crossfadeSeconds = MutableStateFlow(0)
-    val crossfadeSeconds: StateFlow<Int> = _crossfadeSeconds.asStateFlow()
-
     private val _gaplessEnabled = MutableStateFlow(true)
     val gaplessEnabled: StateFlow<Boolean> = _gaplessEnabled.asStateFlow()
 
@@ -130,7 +127,6 @@ class AudioEngine(private val context: Context) {
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var progressJob: Job? = null
-    private var crossfadeJob: Job? = null
 
     private var audioFocusRequest: AudioFocusRequest? = null
     private var originalQueue: List<Song> = emptyList()
@@ -328,7 +324,6 @@ class AudioEngine(private val context: Context) {
         
         router.setVolume(_currentVolume.value)
         router.setSpeed(_playbackSpeed.value)
-        router.crossfadeSeconds = _crossfadeSeconds.value
         router.isGaplessEnabled = _gaplessEnabled.value
         
         router.playSong(song, autoPlay)
@@ -516,15 +511,7 @@ class AudioEngine(private val context: Context) {
     // SPEED, PITCH & BALANCE
     // ─────────────────────────────────────────────────────────────
 
-    private var crossfadeDurationSec: Int = 0
     private var isGaplessEnabled: Boolean = true
-
-    fun setCrossfade(seconds: Int) {
-        val valid = seconds.coerceIn(0, 12)
-        crossfadeDurationSec = valid
-        _crossfadeSeconds.value = valid
-        playbackRouter?.crossfadeSeconds = valid
-    }
 
     fun setGapless(enabled: Boolean) {
         isGaplessEnabled = enabled
@@ -609,12 +596,12 @@ class AudioEngine(private val context: Context) {
                             _isPlaying.value = true
                             onPlaybackStateChange?.invoke(true)
                         }
+                        
+                        val pos = playbackRouter?.getCurrentPosition() ?: 0L
+                        _currentPosition.value = pos
+
                         if (isActuallyPlaying) {
-                            val pos = playbackRouter?.getCurrentPosition() ?: 0L
-                            _currentPosition.value = pos
-                            playbackRouter?.checkCrossfade(pos, _duration.value)
-                            
-                            // Prepare next track for gapless/crossfade if needed
+                            // Prepare next track for gapless if needed
                             if (_duration.value > 0 && (_duration.value - pos) < 20000L) { // prepare 20s in advance
                                 val q = _queue.value
                                 val nextIdx = _currentIndex.value + 1

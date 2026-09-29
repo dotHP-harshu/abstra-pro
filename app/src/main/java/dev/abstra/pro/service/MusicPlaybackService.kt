@@ -196,7 +196,9 @@ class MusicPlaybackService : MediaSessionService() {
     private fun createPlayerAdapter(): SimpleBasePlayer {
         return object : SimpleBasePlayer(android.os.Looper.getMainLooper()) {
             init {
-                invalidatePlayerState = { invalidateState() }
+                invalidatePlayerState = {
+                    serviceScope.launch(Dispatchers.Main) { invalidateState() }
+                }
             }
 
             override fun getState(): State {
@@ -412,7 +414,7 @@ class MusicPlaybackService : MediaSessionService() {
         progressTickerJob?.cancel()
         progressTickerJob = serviceScope.launch {
             while (true) {
-                delay(500L)
+                delay(250L)
                 // Push fresh state to the system so the QS tile, lockscreen,
                 // and notification slider all update.
                 invalidatePlayerState?.invoke()

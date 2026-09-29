@@ -166,8 +166,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val isShuffle: StateFlow<Boolean> = _isShuffle.asStateFlow()
     private val _playbackSpeed = MutableStateFlow(1f)
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
-    private val _crossfadeSeconds = MutableStateFlow(0)
-    val crossfadeSeconds: StateFlow<Int> = _crossfadeSeconds.asStateFlow()
     private val _gaplessEnabled = MutableStateFlow(true)
     val gaplessEnabled: StateFlow<Boolean> = _gaplessEnabled.asStateFlow()
     private val _sleepTimerSecondsRemaining = MutableStateFlow(0)
@@ -362,13 +360,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             launch { e.repeatMode.collect { _repeatMode.value = it } }
             launch { e.isShuffle.collect { _isShuffle.value = it } }
             launch { e.playbackSpeed.collect { _playbackSpeed.value = it } }
-            launch { e.crossfadeSeconds.collect { _crossfadeSeconds.value = it } }
             launch { e.gaplessEnabled.collect { _gaplessEnabled.value = it } }
             launch { e.sleepTimerSecondsRemaining.collect { _sleepTimerSecondsRemaining.value = it } }
             launch { e.pendingSong.collect { _pendingSong.value = it } }
-
-            // Init Audio Engine settings from SharedPreferences
-            e.setCrossfade(prefs.getInt("crossfade_sec", 0))
         }
 
         // Initial scan on boot
@@ -500,7 +494,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleRepeat() = engine?.toggleRepeatMode()
     fun setPlaybackSpeed(speed: Float) = engine?.setPlaybackSpeed(speed)
     fun setSleepTimer(minutes: Int) = engine?.setSleepTimer(minutes)
-    fun setCrossfade(seconds: Int) = engine?.setCrossfade(seconds)
     fun setGapless(enabled: Boolean) = engine?.setGapless(enabled)
 
     private val _playlistPickerForSongs = MutableStateFlow<List<Song>?>(null)
@@ -681,9 +674,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 withContext(Dispatchers.Main) {
                     _repeatMode.value = runCatching { dev.abstra.pro.data.model.RepeatMode.valueOf(prefs.getString("repeat_mode", dev.abstra.pro.data.model.RepeatMode.REPEAT_ALL.name)!!) }.getOrDefault(dev.abstra.pro.data.model.RepeatMode.REPEAT_ALL)
                     _isShuffle.value = prefs.getBoolean("shuffle_enabled", false)
-                    _crossfadeSeconds.value = prefs.getInt("crossfade_seconds", 0)
                     _gaplessEnabled.value = prefs.getBoolean("gapless_enabled", true)
-                    engine?.setCrossfade(_crossfadeSeconds.value)
                     engine?.setGapless(_gaplessEnabled.value)
                 }
             }

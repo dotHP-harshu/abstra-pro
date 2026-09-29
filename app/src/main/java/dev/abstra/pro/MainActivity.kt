@@ -109,7 +109,6 @@ class MainActivity : ComponentActivity() {
             val backgroundPlayback by viewModel.backgroundPlayback.collectAsState()
             val shareAudioFocus by viewModel.shareAudioFocus.collectAsState()
             val appName by viewModel.customAppName.collectAsState()
-            val crossfadeSeconds by viewModel.crossfadeSeconds.collectAsState()
             val gaplessEnabled by viewModel.gaplessEnabled.collectAsState()
             val minDurationFilterSec by viewModel.minDurationFilterSec.collectAsState()
             val writePhysicalTags by viewModel.writePhysicalTags.collectAsState()
@@ -484,8 +483,6 @@ class MainActivity : ComponentActivity() {
                                         onShowTabBarToggle = { viewModel.setShowTabBar(it) },
                                         appName = appName,
                                         onAppNameChange = { viewModel.setCustomAppName(it) },
-                                        crossfadeSeconds = crossfadeSeconds,
-                                        onCrossfadeChange = { viewModel.setCrossfade(it) },
                                         gaplessEnabled = gaplessEnabled,
                                         onGaplessToggle = { viewModel.setGapless(it) },
                                         minDurationFilterSec = minDurationFilterSec,

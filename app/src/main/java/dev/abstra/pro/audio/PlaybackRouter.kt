@@ -11,7 +11,7 @@ import kotlinx.coroutines.*
 import kotlin.math.max
 
 /**
- * Handles dual MediaPlayer instances for Gapless and Crossfade playback.
+ * Handles dual MediaPlayer instances for Gapless playback.
  */
 class PlaybackRouter(
     private val context: Context,
@@ -22,14 +22,11 @@ class PlaybackRouter(
     private val onError: () -> Unit
 ) {
     private var activePlayer: MediaPlayer? = null
-    private var fadingPlayer: MediaPlayer? = null
     private var nextPlayer: MediaPlayer? = null
     private var nextSong: Song? = null
     
-    private var crossfadeJob: Job? = null
     private var prepareNextJob: Job? = null
     
-    var crossfadeSeconds: Int = 0
     var isGaplessEnabled: Boolean = true
     
     var globalVolume: Float = 1.0f
@@ -62,7 +59,7 @@ class PlaybackRouter(
     }
     
     fun prepareNextTrack(song: Song) {
-        if (!isGaplessEnabled && crossfadeSeconds == 0) return
+        if (!isGaplessEnabled) return
         
         prepareNextJob?.cancel()
         nextPlayer?.release()
@@ -74,7 +71,7 @@ class PlaybackRouter(
             applyVolume(mp, 1.0f)
             
             // If just gapless, tell the active player about it
-            if (isGaplessEnabled && crossfadeSeconds == 0) {
+            if (isGaplessEnabled) {
                 try {
                     activePlayer?.setNextMediaPlayer(mp)
                 } catch (e: Exception) {
@@ -90,74 +87,11 @@ class PlaybackRouter(
         nextPlayer?.prepareAsync()
     }
     
-    fun checkCrossfade(currentPositionMs: Long, durationMs: Long) {
-        if (crossfadeSeconds <= 0 || nextPlayer == null || !isPlaying) return
-        
-        val remainingMs = durationMs - currentPositionMs
-        val crossfadeMs = crossfadeSeconds * 1000L
-        
-        // Start crossfade if we are within the crossfade window and haven't started fading yet
-        if (remainingMs <= crossfadeMs && fadingPlayer == null) {
-            startCrossfade()
-        }
-    }
-    
-    private fun startCrossfade() {
-        val oldPlayer = activePlayer
-        val newPlayer = nextPlayer
-        
-        if (oldPlayer == null || newPlayer == null) return
-        
-        fadingPlayer = oldPlayer
-        activePlayer = newPlayer
-        nextPlayer = null
-        
-        try {
-            newPlayer.start()
-            nextSong?.let { 
-                onSeamlessTransition(it) 
-                onSongStarted(it) 
-            }
-        } catch (e: Exception) {
-            Log.e("PlaybackRouter", "Failed to start crossfade player", e)
-            return
-        }
-        
-        crossfadeJob?.cancel()
-        crossfadeJob = scope.launch {
-            val steps = 20
-            val delayMs = (crossfadeSeconds * 1000L) / steps
-            
-            for (i in 0..steps) {
-                if (!isActive) break
-                val fadeOut = 1.0f - (i.toFloat() / steps)
-                val fadeIn = (i.toFloat() / steps)
-                
-                applyVolume(fadingPlayer, fadeOut)
-                applyVolume(activePlayer, fadeIn)
-                
-                delay(delayMs)
-            }
-            
-            fadingPlayer?.stop()
-            fadingPlayer?.release()
-            fadingPlayer = null
-            
-            applyVolume(activePlayer, 1.0f)
-            // We already told AudioEngine via onSeamlessTransition that we moved forward.
-            // DO NOT call onSongCompleted(), it would cause AudioEngine to advance again.
-        }
-    }
+
     
     private fun handleCompletion(mp: MediaPlayer) {
-        if (mp === fadingPlayer) {
-            fadingPlayer?.release()
-            fadingPlayer = null
-            return
-        }
-        
         if (mp === activePlayer) {
-            if (nextPlayer != null && isGaplessEnabled && crossfadeSeconds == 0) {
+            if (nextPlayer != null && isGaplessEnabled) {
                 // Gapless took over
                 activePlayer?.release()
                 activePlayer = nextPlayer
@@ -215,13 +149,11 @@ class PlaybackRouter(
     fun pause() {
         isPlaying = false
         activePlayer?.pause()
-        fadingPlayer?.pause()
     }
     
     fun resume() {
         isPlaying = true
         activePlayer?.start()
-        fadingPlayer?.start()
     }
     
     fun seekTo(positionMs: Long) {
@@ -237,7 +169,6 @@ class PlaybackRouter(
     fun setSpeed(speed: Float) {
         playbackSpeed = speed
         applySpeed(activePlayer)
-        applySpeed(fadingPlayer)
     }
     
     fun getCurrentPosition(): Long {
@@ -245,7 +176,7 @@ class PlaybackRouter(
     }
     
     fun isPlaying(): Boolean {
-        return activePlayer?.isPlaying == true || fadingPlayer?.isPlaying == true
+        return activePlayer?.isPlaying == true
     }
     
     fun getAudioSessionId(): Int {
@@ -253,19 +184,15 @@ class PlaybackRouter(
     }
     
     private fun stopAll() {
-        crossfadeJob?.cancel()
         prepareNextJob?.cancel()
         
         try { activePlayer?.stop() } catch (_: Exception) {}
-        try { fadingPlayer?.stop() } catch (_: Exception) {}
         try { nextPlayer?.stop() } catch (_: Exception) {}
         
         activePlayer?.release()
-        fadingPlayer?.release()
         nextPlayer?.release()
         
         activePlayer = null
-        fadingPlayer = null
         nextPlayer = null
         
         isPlaying = false
