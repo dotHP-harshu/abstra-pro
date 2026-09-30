@@ -155,15 +155,18 @@ class AudioEngine(private val context: Context) {
                 _isPlaying.value = true
                 onSongStarted?.invoke(s)
                 onPlaybackStateChange?.invoke(true)
+                scope.launch {
+                    delay(100)
+                    effectsManager.attachSession(playbackRouter?.getAudioSessionId() ?: 0)
+                }
             },
             onSongCompleted = {
                 scope.launch { handleSongCompletion() }
             },
             onSeamlessTransition = { song ->
-                // PlaybackRouter handled gapless/crossfade, so we just update our state 
-                // to match the new song, WITHOUT triggering a new play request.
                 _currentSong.value = song
                 _duration.value = song.durationMs
+                _currentPosition.value = 0L
                 val q = _queue.value
                 val newIdx = q.indexOfFirst { it.id == song.id }
                 if (newIdx != -1) {
@@ -331,12 +334,6 @@ class AudioEngine(private val context: Context) {
         if (!autoPlay) {
             _isPlaying.value = false
             onPlaybackStateChange?.invoke(false)
-        }
-        
-        // Let the eq attach when ready. We poll occasionally since router hides inner players
-        scope.launch {
-            delay(300)
-            effectsManager.attachSession(router.getAudioSessionId())
         }
     }
 
@@ -585,6 +582,7 @@ class AudioEngine(private val context: Context) {
     private fun startProgressTracker() {
         progressJob?.cancel()
         progressJob = scope.launch {
+            var lastValidPos = 0L
             while (isActive) {
                 if (playbackRouter != null) {
                     try {
@@ -597,12 +595,17 @@ class AudioEngine(private val context: Context) {
                             onPlaybackStateChange?.invoke(true)
                         }
                         
-                        val pos = playbackRouter?.getCurrentPosition() ?: 0L
-                        _currentPosition.value = pos
+                        val newPos = if (isActuallyPlaying) {
+                            playbackRouter?.getCurrentPosition() ?: lastValidPos
+                        } else {
+                            lastValidPos
+                        }
+                        if (newPos > 0L) lastValidPos = newPos
+                        _currentPosition.value = lastValidPos
 
                         if (isActuallyPlaying) {
                             // Prepare next track for gapless if needed
-                            if (_duration.value > 0 && (_duration.value - pos) < 20000L) { // prepare 20s in advance
+                            if (_duration.value > 0 && (_duration.value - lastValidPos) < 20000L) { // prepare 20s in advance
                                 val q = _queue.value
                                 val nextIdx = _currentIndex.value + 1
                                 if (nextIdx < q.size) {

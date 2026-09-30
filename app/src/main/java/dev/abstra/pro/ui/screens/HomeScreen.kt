@@ -19,7 +19,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -440,12 +444,49 @@ fun GreetingHeroCard(
                         color = colors.textHeading
                     )
                     if (!userName.isNullOrBlank()) {
-                        Text(
-                            text = userName,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = colors.textHeading.copy(alpha = 0.8f)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(top = 2.dp)
+                        ) {
+                            Text(
+                                text = "♡",
+                                fontSize = 18.sp,
+                                color = colors.primary.copy(alpha = 0.85f),
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = userName,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                color = colors.primary,
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    letterSpacing = 0.5.sp
+                                ),
+                                maxLines = 2,
+                                modifier = Modifier
+                                    .drawBehind {
+                                        drawRoundRect(
+                                            brush = Brush.horizontalGradient(
+                                                colors = listOf(
+                                                    colors.primary.copy(alpha = 0.0f),
+                                                    colors.primary.copy(alpha = 0.35f),
+                                                    colors.primary.copy(alpha = 0.0f)
+                                                )
+                                            ),
+                                            topLeft = Offset(0f, size.height - 2.dp.toPx()),
+                                            size = Size(size.width, 2.dp.toPx()),
+                                            cornerRadius = CornerRadius(2.dp.toPx())
+                                        )
+                                    }
+                            )
+                            Text(
+                                text = "✦",
+                                fontSize = 14.sp,
+                                color = colors.primary.copy(alpha = 0.7f)
+                            )
+                        }
                     }
                 }
                 Spacer(Modifier.weight(1f))

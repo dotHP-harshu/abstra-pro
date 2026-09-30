@@ -22,8 +22,7 @@ class PlaybackRouter(
     private val onError: () -> Unit
 ) {
     private var activePlayer: MediaPlayer? = null
-    private var nextPlayer: MediaPlayer? = null
-    private var nextSong: Song? = null
+    private var pendingNextSong: Song? = null
     
     private var prepareNextJob: Job? = null
     
@@ -40,6 +39,7 @@ class PlaybackRouter(
         
         val player = createPlayer(song) ?: return
         activePlayer = player
+        pendingNextSong = null
         
         player.setOnPreparedListener { mp ->
             applySpeed(mp)
@@ -60,50 +60,41 @@ class PlaybackRouter(
     
     fun prepareNextTrack(song: Song) {
         if (!isGaplessEnabled) return
-        
-        prepareNextJob?.cancel()
-        nextPlayer?.release()
-        
-        nextSong = song
-        nextPlayer = createPlayer(song)
-        nextPlayer?.setOnPreparedListener { mp ->
-            applySpeed(mp)
-            applyVolume(mp, 1.0f)
-            
-            // If just gapless, tell the active player about it
-            if (isGaplessEnabled) {
-                try {
-                    activePlayer?.setNextMediaPlayer(mp)
-                } catch (e: Exception) {
-                    Log.e("PlaybackRouter", "Error setting next media player", e)
-                }
-            }
-        }
-        
-        nextPlayer?.setOnCompletionListener {
-            handleCompletion(it)
-        }
-        
-        nextPlayer?.prepareAsync()
+        pendingNextSong = song
     }
     
 
     
     private fun handleCompletion(mp: MediaPlayer) {
-        if (mp === activePlayer) {
-            if (nextPlayer != null && isGaplessEnabled) {
-                // Gapless took over
-                activePlayer?.release()
-                activePlayer = nextPlayer
-                nextPlayer = null
-                nextSong?.let { 
-                    onSeamlessTransition(it) 
-                    onSongStarted(it)
+        if (mp !== activePlayer) return
+        val next = pendingNextSong
+        if (next != null && isGaplessEnabled) {
+            pendingNextSong = null
+            val oldPlayer = activePlayer
+            scope.launch(Dispatchers.Main) {
+                val newPlayer = createPlayer(next)
+                if (newPlayer == null) {
+                    oldPlayer?.release()
+                    onSongCompleted()
+                    return@launch
                 }
-                // DONT call onSongCompleted here because we handled the transition seamlessly.
-            } else {
-                onSongCompleted()
+                activePlayer = newPlayer
+                newPlayer.setOnPreparedListener { mp2 ->
+                    applySpeed(mp2)
+                    applyVolume(mp2, 1.0f)
+                    mp2.start()
+                    isPlaying = true
+                    oldPlayer?.release()
+                    onSeamlessTransition(next)
+                    onSongStarted(next)
+                }
+                newPlayer.setOnCompletionListener { handleCompletion(it) }
+                newPlayer.prepareAsync()
             }
+        } else {
+            activePlayer?.release()
+            activePlayer = null
+            onSongCompleted()
         }
     }
     
@@ -187,13 +178,11 @@ class PlaybackRouter(
         prepareNextJob?.cancel()
         
         try { activePlayer?.stop() } catch (_: Exception) {}
-        try { nextPlayer?.stop() } catch (_: Exception) {}
         
         activePlayer?.release()
-        nextPlayer?.release()
         
         activePlayer = null
-        nextPlayer = null
+        pendingNextSong = null
         
         isPlaying = false
     }
