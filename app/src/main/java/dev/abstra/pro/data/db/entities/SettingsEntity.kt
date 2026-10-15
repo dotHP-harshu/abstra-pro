@@ -18,5 +18,7 @@ data class SettingsEntity(
     val keepScreenOnInPlayer: Boolean = false,
     val sortOption: String = "date_desc",
     val showQueueOnSongClick: Boolean = false,
-    val playlistOrder: String = "" // Storing lists as CSV strings for simplicity, or we can use TypeConverters
+    val playlistOrder: String = "", // Storing lists as CSV strings for simplicity, or we can use TypeConverters
+    val selectedFont: String = "SYSTEM",
+    val greetingStyle: String = "CLASSIC"
 )

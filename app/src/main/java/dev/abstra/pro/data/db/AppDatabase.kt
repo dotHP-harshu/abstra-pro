@@ -9,6 +9,8 @@ import dev.abstra.pro.data.db.dao.PlaylistDao
 import dev.abstra.pro.data.db.dao.SettingsDao
 import dev.abstra.pro.data.db.dao.TelemetryDao
 import dev.abstra.pro.data.db.entities.*
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [
@@ -24,7 +26,7 @@ import dev.abstra.pro.data.db.entities.*
         WidgetPrefsEntity::class,
         SettingsEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -39,13 +41,23 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun getInstance(context: Context): AppDatabase = getDatabase(context)
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE app_settings ADD COLUMN selectedFont TEXT NOT NULL DEFAULT 'SYSTEM'")
+                db.execSQL("ALTER TABLE app_settings ADD COLUMN greetingStyle TEXT NOT NULL DEFAULT 'CLASSIC'")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "abstra_pro.db"
-                ).fallbackToDestructiveMigration().build()
+                )
+                .addMigrations(MIGRATION_3_4)
+                .fallbackToDestructiveMigration()
+                .build()
                 INSTANCE = instance
                 instance
             }

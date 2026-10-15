@@ -26,6 +26,12 @@ interface SettingsDao {
 
     @Query("UPDATE app_settings SET hasAskedForName = 1 WHERE id = 0")
     suspend fun markAskedForName()
+    
+    @Query("UPDATE app_settings SET selectedFont = :font WHERE id = 0")
+    suspend fun setSelectedFont(font: String)
+
+    @Query("UPDATE app_settings SET greetingStyle = :style WHERE id = 0")
+    suspend fun setGreetingStyle(style: String)
     // ── Audio Effects Settings ──
     @Query("SELECT * FROM effect_settings WHERE id = 1 LIMIT 1")
     fun getEffectSettings(): Flow<EffectSettingsEntity?>
