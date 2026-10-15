@@ -1,0 +1,28 @@
+steps:
+  # Abstra Pro: Synced Lyrics overlay for a track that has a matching .lrc file
+  # sitting next to it in /sdcard/Abstra Demo.
+  - launch: dev.abstra.pro
+  - await: { visible: { text: "While using the app" } }
+  - tap: { text: "While using the app" }
+  - await: { visible: { text: "Allow" } }
+  - tap: { text: "Allow" }
+  - await: { visible: { text: "What's your name?" } }
+  - tap: { text: Skip }
+  - await: { visible: { text: "RECENTLY ADDED" } }
+
+  - tap: { text: Songs }
+  - await: { visible: { id: Search } }
+  - await: { visible: { text: "Midnight Polaroid" } }
+  - tap: { text: "Midnight Polaroid" }
+  - await: { visible: { id: Pause } }
+  - wait: 1200
+
+  - echo: Left third of the bottom mini player bar opens the Full Player.
+  - tap: { x: 0.28, y: 0.928 }
+  - await: { visible: { id: "Collapse Player" } }
+
+  - echo: "Lyrics" chip at the bottom of the Full Player.
+  - tap: { text: Lyrics }
+  - await: { visible: { text: "Synced Lyrics" } }
+  - wait: 2000
+  - await: { idle: true }

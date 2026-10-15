@@ -1,0 +1,29 @@
+steps:
+  # Abstra Pro: expanded Full Player with the default CD centerpiece.
+  - launch: dev.abstra.pro
+  - await: { visible: { text: "While using the app" } }
+  - tap: { text: "While using the app" }
+  - await: { visible: { text: "Allow" } }
+  - tap: { text: "Allow" }
+  - await: { visible: { text: "What's your name?" } }
+  - tap: { text: Skip }
+  - await: { visible: { text: "RECENTLY ADDED" } }
+
+  - echo: Go to the Songs tab via its top pill.
+  - tap: { text: Songs }
+  - await: { visible: { id: Search } }
+  - await: { visible: { text: "Midnight Polaroid" } }
+
+  - echo: Start playback on the first seeded track.
+  - tap: { text: "Midnight Polaroid" }
+  - await: { visible: { id: Pause } }
+  - wait: 1200
+
+  - echo: Tapping the mini player bar opens the Full Player. Coordinates are the
+  #        left third of the 68dp bar docked at the bottom, clear of the
+  #        play/pause and next-track buttons on its right side.
+  - tap: { x: 0.28, y: 0.928 }
+  - await: { visible: { id: "Collapse Player" } }
+  - await: { visible: { id: "Audio Equalizer & Effects" } }
+  - wait: 1500
+  - await: { idle: true }

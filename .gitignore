@@ -1,2 +1,3 @@
 keystore.properties
 *.jks
+goldie/out/

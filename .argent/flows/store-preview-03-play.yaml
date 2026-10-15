@@ -1,0 +1,14 @@
+executionPrerequisite: >-
+  Songs tab with the seeded library listed, nothing playing yet.
+
+steps:
+  - echo: Start a track, then open the Full Player from the mini player.
+  - tap: { text: "Midnight Polaroid" }
+  - wait: 1000
+  - tap: { x: 0.28, y: 0.928 }
+  - await: { visible: { id: "Collapse Player" } }
+  - wait: 2000
+  - echo: Open the DSP screen so the clip ends on the sound-shaping payoff.
+  - tap: { id: "Audio Equalizer & Effects" }
+  - await: { visible: { text: "DSP Audio Effects" } }
+  - wait: 1500

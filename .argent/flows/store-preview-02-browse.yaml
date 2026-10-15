@@ -1,0 +1,10 @@
+executionPrerequisite: >-
+  Home tab settled with the library loaded, mini player not yet started.
+
+steps:
+  - echo: Swipe through the top pills to show the tabbed layout in motion.
+  - wait: 800
+  - tap: { text: Songs }
+  - wait: 1200
+  - await: { visible: { text: "Midnight Polaroid" } }
+  - wait: 600

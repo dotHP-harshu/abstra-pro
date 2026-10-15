@@ -1,0 +1,27 @@
+steps:
+  # Abstra Pro: DSP Audio Effects overlay, reached from the Full Player's EQ icon.
+  - launch: dev.abstra.pro
+  - await: { visible: { text: "While using the app" } }
+  - tap: { text: "While using the app" }
+  - await: { visible: { text: "Allow" } }
+  - tap: { text: "Allow" }
+  - await: { visible: { text: "What's your name?" } }
+  - tap: { text: Skip }
+  - await: { visible: { text: "RECENTLY ADDED" } }
+
+  - tap: { text: Songs }
+  - await: { visible: { id: Search } }
+  - await: { visible: { text: "Midnight Polaroid" } }
+  - tap: { text: "Midnight Polaroid" }
+  - await: { visible: { id: Pause } }
+  - wait: 1200
+
+  - echo: Left third of the bottom mini player bar opens the Full Player.
+  - tap: { x: 0.28, y: 0.928 }
+  - await: { visible: { id: "Collapse Player" } }
+
+  - echo: GraphicEq icon in the Full Player's top bar opens the DSP screen.
+  - tap: { id: "Audio Equalizer & Effects" }
+  - await: { visible: { text: "DSP Audio Effects" } }
+  - wait: 1500
+  - await: { idle: true }

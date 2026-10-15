@@ -1,0 +1,17 @@
+steps:
+  # Abstra Pro: Songs tab, the full searchable library.
+  - launch: dev.abstra.pro
+  - await: { visible: { text: "While using the app" } }
+  - tap: { text: "While using the app" }
+  - await: { visible: { text: "Allow" } }
+  - tap: { text: "Allow" }
+  - await: { visible: { text: "What's your name?" } }
+  - tap: { text: Skip }
+  - await: { visible: { text: "RECENTLY ADDED" } }
+
+  - tap: { text: Songs }
+  - await: { visible: { id: Search } }
+  - await: { visible: { text: "Midnight Polaroid" } }
+  # Deliberately leaves the search field unfocused so no soft keyboard is in shot.
+  - wait: 1200
+  - await: { idle: true }

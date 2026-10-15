@@ -1,0 +1,14 @@
+executionPrerequisite: >-
+  App freshly restarted by goldie from a cleared install, so the media
+  permission dialog, the notification dialog and the one-time name prompt are
+  all still up. Ends with the Home tab settled and the library rescan done.
+
+steps:
+  - await: { visible: { text: "While using the app" } }
+  - tap: { text: "While using the app" }
+  - await: { visible: { text: "Allow" } }
+  - tap: { text: "Allow" }
+  - await: { visible: { text: "What's your name?" } }
+  - tap: { text: Skip }
+  - await: { visible: { text: "RECENTLY ADDED" } }
+  - wait: 1500

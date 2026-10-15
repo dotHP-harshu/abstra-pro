@@ -1,0 +1,18 @@
+steps:
+  # Abstra Pro: Home tab. Fresh install from goldie, so the two system
+  # permission dialogs and the one-time name prompt are always present.
+  - launch: dev.abstra.pro
+  - echo: Grant the READ_MEDIA_AUDIO prompt (Android 13+ grouped media dialog).
+  - await: { visible: { text: "While using the app" } }
+  - tap: { text: "While using the app" }
+  - echo: Then the POST_NOTIFICATIONS prompt.
+  - await: { visible: { text: "Allow" } }
+  - tap: { text: "Allow" }
+  - echo: One-time "What's your name?" prompt, dismissed with Skip.
+  - await: { visible: { text: "What's your name?" } }
+  - tap: { text: Skip }
+  - echo: Granting the permission auto-triggers the library rescan; RECENTLY
+  #        ADDED only appears once tracks have loaded, so it is the settle signal.
+  - await: { visible: { text: "RECENTLY ADDED" } }
+  - wait: 1200
+  - await: { idle: true }
