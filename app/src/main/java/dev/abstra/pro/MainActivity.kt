@@ -18,6 +18,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -74,6 +75,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        dev.abstra.pro.data.prefs.AppPreferences.init(this.applicationContext)
         enableEdgeToEdge()
 
         setContent {
@@ -230,8 +232,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            AbstraTheme(appTheme = currentTheme) {
-                val colors = LocalAbstraColors.current
+            val appFont by dev.abstra.pro.data.prefs.AppPreferences.fontFlow.collectAsStateWithLifecycle(initialValue = dev.abstra.pro.ui.theme.AppFont.DEFAULT)
+            androidx.compose.runtime.CompositionLocalProvider(
+                dev.abstra.pro.ui.theme.LocalAppFont provides appFont
+            ) {
+                AbstraTheme(appTheme = currentTheme) {
+                    val colors = LocalAbstraColors.current
                 var selectedPlaylist by remember { mutableStateOf<dev.abstra.pro.data.model.Playlist?>(null) }
                 val coroutineScope = rememberCoroutineScope()
                 val pagerState = androidx.compose.foundation.pager.rememberPagerState(
@@ -661,6 +667,7 @@ class MainActivity : ComponentActivity() {
                                 onDismiss = { showQueueSheet = false },
                                 onReorder = { from, to -> viewModel.moveQueueItem(from, to) },
                                 onRemove = { song -> viewModel.removeQueueItem(song) },
+                                onRemoveAt = { idx -> viewModel.removeQueueItemAt(idx) },
                                 onClearQueue = { viewModel.clearQueue() },
                                 onClearEntireQueue = {
                                     viewModel.clearEntireQueue()
@@ -700,6 +707,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
 }
 
 fun getStorageVolumes(context: android.content.Context): List<StorageInfo> {

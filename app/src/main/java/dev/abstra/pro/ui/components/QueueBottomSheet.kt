@@ -28,7 +28,8 @@ fun QueueBottomSheet(
     onRemove: (Song) -> Unit,
     onClearQueue: () -> Unit,
     onClearEntireQueue: () -> Unit,
-    onSongClick: (Song) -> Unit
+    onSongClick: (Song) -> Unit,
+    onRemoveAt: ((Int) -> Unit)? = null
 ) {
     val colors = LocalAbstraColors.current
     val listState = rememberLazyListState()
@@ -120,14 +121,18 @@ fun QueueBottomSheet(
                         .reorderable(reorderState),
                     contentPadding = PaddingValues(top = 4.dp, bottom = 32.dp)
                 ) {
-                    itemsIndexed(queue, key = { _, s -> s.id }) { index, song ->
+                    itemsIndexed(queue, key = { index, s -> "${s.id}_$index" }) { index, song ->
                         val isCurrent = index == currentIndex
                         SongListItem(
                             song = song,
                             isPlaying = isCurrent,
                             onClick = { onSongClick(song) },
                             onFavoriteToggle = {},
-                            onOptionsClick = { if (!isCurrent) onRemove(song) },
+                            onOptionsClick = {
+                                if (!isCurrent) {
+                                    if (onRemoveAt != null) onRemoveAt(index) else onRemove(song)
+                                }
+                            },
                             modifier = Modifier.reorderableItem(reorderState, index),
                             onSwipeNext = null
                         )
