@@ -1,0 +1,848 @@
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\viewmodel\MusicViewModel.kt:122: Warning: Consider using apply() instead; commit writes its data to persistent storage immediately, whereas apply will handle it in the background [ApplySharedPref]
+        prefs.edit().putBoolean("background_playback", enabled).commit()
+                                                                ~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\viewmodel\MusicViewModel.kt:133: Warning: Consider using apply() instead; commit writes its data to persistent storage immediately, whereas apply will handle it in the background [ApplySharedPref]
+        prefs.edit().putBoolean("share_audio_focus", enabled).commit()
+                                                              ~~~~~~~~
+
+   Explanation for issues of type "ApplySharedPref":
+   Consider using apply() instead of commit on shared preferences. Whereas
+   commit blocks and writes its data to persistent storage immediately, apply
+   will handle it in the background.
+
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\screens\EqualizerScreen.kt:503: Warning: Implicitly using the default locale is a common source of bugs: Use String.format(Locale, ...) instead [DefaultLocale]
+                                text = String.format("%.2fx", playbackSpeed),
+                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\screens\FullPlayerScreen.kt:183: Warning: Implicitly using the default locale is a common source of bugs: Use String.format(Locale, ...) instead [DefaultLocale]
+                                String.format("%02d:%02d", mins, secs)
+                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\screens\FullPlayerScreen.kt:532: Warning: Implicitly using the default locale is a common source of bugs: Use String.format(Locale, ...) instead [DefaultLocale]
+    return String.format("%02d:%02d", minutes, seconds)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\service\MusicPlaybackService.kt:588: Warning: Implicitly using the default locale is a common source of bugs: Use String.format(Locale, ...) instead [DefaultLocale]
+        return String.format("%d:%02d", m, s)
+               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "DefaultLocale":
+   Calling String#toLowerCase() or #toUpperCase() without specifying an
+   explicit locale is a common source of bugs. The reason for that is that
+   those methods will use the current locale on the user's device, and even
+   though the code appears to work correctly when you are developing the app,
+   it will fail in some locales. For example, in the Turkish locale, the
+   uppercase replacement for i is not I.
+
+   If you want the methods to just perform ASCII replacement, for example to
+   convert an enum name, call String#toUpperCase(Locale.ROOT) instead. If you
+   really want to use the current locale, call
+   String#toUpperCase(Locale.getDefault()) instead.
+
+   https://developer.android.com/reference/java/util/Locale.html#default_locale
+
+D:\abstra-pro\app\src\main\res\layout\abstra_widget_layout.xml:7: Warning: Attribute clipToOutline is only used in API level 31 and higher (current min is 24) [UnusedAttribute]
+    android:clipToOutline="true">
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\layout\abstra_widget_layout.xml:30: Warning: Attribute clipToOutline is only used in API level 31 and higher (current min is 24) [UnusedAttribute]
+            android:clipToOutline="true">
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "UnusedAttribute":
+   This check finds attributes set in XML files that were introduced in a
+   version newer than the oldest version targeted by your application (with
+   the minSdkVersion attribute).
+
+   This is not an error; the application will simply ignore the attribute.
+   However, if the attribute is important to the appearance or functionality
+   of your application, you should consider finding an alternative way to
+   achieve the same result with only available attributes, and then you can
+   optionally create a copy of the layout in a layout-vNN folder which will be
+   used on API NN or higher where you can take advantage of the newer
+   attribute.
+
+   Note: This check does not only apply to attributes. For example, some tags
+   can be unused too, such as the new <tag> element in layouts introduced in
+   API 21.
+
+D:\abstra-pro\app\src\main\AndroidManifest.xml:47: Error: Missing URL [AppLinkUrlError]
+            <intent-filter>
+            ^
+
+   Explanation for issues of type "AppLinkUrlError":
+   Ensure your intent filter has the documented elements for deep links, web
+   links, or Android App Links.
+
+   https://developer.android.com/training/app-links
+   https://g.co/AppIndexing/AndroidStudio
+
+D:\abstra-pro\gradle\libs.versions.toml:2: Warning: A newer version of com.android.application than 8.7.3 is available: 9.4.1 [AndroidGradlePluginVersion]
+agp = "8.7.3"
+      ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:2: Warning: A newer version of com.android.application than 8.7.3 is available: 9.4.1 [AndroidGradlePluginVersion]
+agp = "8.7.3"
+      ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:2: Warning: A newer version of com.android.application than 8.7.3 is available: 9.4.1 [AndroidGradlePluginVersion]
+agp = "8.7.3"
+      ~~~~~~~
+
+   Explanation for issues of type "AndroidGradlePluginVersion":
+   This detector looks for usage of the Android Gradle Plugin where the
+   version you are using is not the current stable release. Using older
+   versions is fine, and there are cases where you deliberately want to stick
+   with an older version. However, you may simply not be aware that a more
+   recent version is available, and that is what this lint check helps find.
+
+D:\abstra-pro\gradle\libs.versions.toml:5: Warning: A newer version of androidx.core:core-ktx than 1.13.1 is available: 1.19.1 [GradleDependency]
+coreKtx = "1.13.1"
+          ~~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:5: Warning: A newer version of androidx.core:core-ktx than 1.13.1 is available: 1.19.1 [GradleDependency]
+coreKtx = "1.13.1"
+          ~~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:5: Warning: A newer version of androidx.core:core-ktx than 1.13.1 is available: 1.19.1 [GradleDependency]
+coreKtx = "1.13.1"
+          ~~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:6: Warning: A newer version of androidx.appcompat:appcompat than 1.7.0 is available: 1.8.0 [GradleDependency]
+appcompat = "1.7.0"
+            ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:6: Warning: A newer version of androidx.appcompat:appcompat than 1.7.0 is available: 1.8.0 [GradleDependency]
+appcompat = "1.7.0"
+            ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:6: Warning: A newer version of androidx.appcompat:appcompat than 1.7.0 is available: 1.8.0 [GradleDependency]
+appcompat = "1.7.0"
+            ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:7: Warning: A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.8.7 is available: 2.11.0 [GradleDependency]
+lifecycleRuntimeKtx = "2.8.7"
+                      ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:7: Warning: A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.8.7 is available: 2.11.0 [GradleDependency]
+lifecycleRuntimeKtx = "2.8.7"
+                      ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:7: Warning: A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.8.7 is available: 2.11.0 [GradleDependency]
+lifecycleRuntimeKtx = "2.8.7"
+                      ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:8: Warning: A newer version of androidx.lifecycle:lifecycle-viewmodel-compose than 2.8.7 is available: 2.11.0 [GradleDependency]
+lifecycleViewmodelCompose = "2.8.7"
+                            ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:8: Warning: A newer version of androidx.lifecycle:lifecycle-viewmodel-compose than 2.8.7 is available: 2.11.0 [GradleDependency]
+lifecycleViewmodelCompose = "2.8.7"
+                            ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:8: Warning: A newer version of androidx.lifecycle:lifecycle-viewmodel-compose than 2.8.7 is available: 2.11.0 [GradleDependency]
+lifecycleViewmodelCompose = "2.8.7"
+                            ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:9: Warning: A newer version of androidx.lifecycle:lifecycle-runtime-compose than 2.8.7 is available: 2.11.0 [GradleDependency]
+lifecycleRuntimeCompose = "2.8.7"
+                          ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:9: Warning: A newer version of androidx.lifecycle:lifecycle-runtime-compose than 2.8.7 is available: 2.11.0 [GradleDependency]
+lifecycleRuntimeCompose = "2.8.7"
+                          ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:9: Warning: A newer version of androidx.lifecycle:lifecycle-runtime-compose than 2.8.7 is available: 2.11.0 [GradleDependency]
+lifecycleRuntimeCompose = "2.8.7"
+                          ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:10: Warning: A newer version of androidx.activity:activity-compose than 1.9.3 is available: 1.13.0 [GradleDependency]
+activityCompose = "1.9.3"
+                  ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:10: Warning: A newer version of androidx.activity:activity-compose than 1.9.3 is available: 1.13.0 [GradleDependency]
+activityCompose = "1.9.3"
+                  ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:10: Warning: A newer version of androidx.activity:activity-compose than 1.9.3 is available: 1.13.0 [GradleDependency]
+activityCompose = "1.9.3"
+                  ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:11: Warning: A newer version of androidx.compose:compose-bom than 2024.09.00 is available: 2026.09.00 [GradleDependency]
+composeBom = "2024.09.00"
+             ~~~~~~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:11: Warning: A newer version of androidx.compose:compose-bom than 2024.09.00 is available: 2026.09.00 [GradleDependency]
+composeBom = "2024.09.00"
+             ~~~~~~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:11: Warning: A newer version of androidx.compose:compose-bom than 2024.09.00 is available: 2026.09.00 [GradleDependency]
+composeBom = "2024.09.00"
+             ~~~~~~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:13: Warning: A newer version of androidx.navigation:navigation-compose than 2.8.3 is available: 2.10.2 [GradleDependency]
+navigationCompose = "2.8.3"
+                    ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:13: Warning: A newer version of androidx.navigation:navigation-compose than 2.8.3 is available: 2.10.2 [GradleDependency]
+navigationCompose = "2.8.3"
+                    ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:13: Warning: A newer version of androidx.navigation:navigation-compose than 2.8.3 is available: 2.10.2 [GradleDependency]
+navigationCompose = "2.8.3"
+                    ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:14: Warning: A newer version of androidx.room:room-compiler than 2.6.1 is available: 2.8.5 [GradleDependency]
+room = "2.6.1"
+       ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:14: Warning: A newer version of androidx.room:room-compiler than 2.6.1 is available: 2.8.5 [GradleDependency]
+room = "2.6.1"
+       ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:14: Warning: A newer version of androidx.room:room-compiler than 2.6.1 is available: 2.8.5 [GradleDependency]
+room = "2.6.1"
+       ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:14: Warning: A newer version of androidx.room:room-ktx than 2.6.1 is available: 2.8.5 [GradleDependency]
+room = "2.6.1"
+       ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:14: Warning: A newer version of androidx.room:room-ktx than 2.6.1 is available: 2.8.5 [GradleDependency]
+room = "2.6.1"
+       ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:14: Warning: A newer version of androidx.room:room-ktx than 2.6.1 is available: 2.8.5 [GradleDependency]
+room = "2.6.1"
+       ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:14: Warning: A newer version of androidx.room:room-runtime than 2.6.1 is available: 2.8.5 [GradleDependency]
+room = "2.6.1"
+       ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:14: Warning: A newer version of androidx.room:room-runtime than 2.6.1 is available: 2.8.5 [GradleDependency]
+room = "2.6.1"
+       ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:14: Warning: A newer version of androidx.room:room-runtime than 2.6.1 is available: 2.8.5 [GradleDependency]
+room = "2.6.1"
+       ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:15: Warning: A newer version of androidx.media3:media3-common than 1.4.1 is available: 1.11.1 [GradleDependency]
+media3 = "1.4.1"
+         ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:15: Warning: A newer version of androidx.media3:media3-common than 1.4.1 is available: 1.11.1 [GradleDependency]
+media3 = "1.4.1"
+         ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:15: Warning: A newer version of androidx.media3:media3-common than 1.4.1 is available: 1.11.1 [GradleDependency]
+media3 = "1.4.1"
+         ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:15: Warning: A newer version of androidx.media3:media3-exoplayer than 1.4.1 is available: 1.11.1 [GradleDependency]
+media3 = "1.4.1"
+         ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:15: Warning: A newer version of androidx.media3:media3-exoplayer than 1.4.1 is available: 1.11.1 [GradleDependency]
+media3 = "1.4.1"
+         ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:15: Warning: A newer version of androidx.media3:media3-exoplayer than 1.4.1 is available: 1.11.1 [GradleDependency]
+media3 = "1.4.1"
+         ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:15: Warning: A newer version of androidx.media3:media3-session than 1.4.1 is available: 1.11.1 [GradleDependency]
+media3 = "1.4.1"
+         ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:15: Warning: A newer version of androidx.media3:media3-session than 1.4.1 is available: 1.11.1 [GradleDependency]
+media3 = "1.4.1"
+         ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:15: Warning: A newer version of androidx.media3:media3-session than 1.4.1 is available: 1.11.1 [GradleDependency]
+media3 = "1.4.1"
+         ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:20: Warning: A newer version of androidx.documentfile:documentfile than 1.0.1 is available: 1.1.0 [GradleDependency]
+documentfile = "1.0.1"
+               ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:20: Warning: A newer version of androidx.documentfile:documentfile than 1.0.1 is available: 1.1.0 [GradleDependency]
+documentfile = "1.0.1"
+               ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:20: Warning: A newer version of androidx.documentfile:documentfile than 1.0.1 is available: 1.1.0 [GradleDependency]
+documentfile = "1.0.1"
+               ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:22: Warning: A newer version of androidx.test.ext:junit than 1.2.1 is available: 1.3.0 [GradleDependency]
+junitVersion = "1.2.1"
+               ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:22: Warning: A newer version of androidx.test.ext:junit than 1.2.1 is available: 1.3.0 [GradleDependency]
+junitVersion = "1.2.1"
+               ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:22: Warning: A newer version of androidx.test.ext:junit than 1.2.1 is available: 1.3.0 [GradleDependency]
+junitVersion = "1.2.1"
+               ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:23: Warning: A newer version of androidx.test.espresso:espresso-core than 3.6.1 is available: 3.7.0 [GradleDependency]
+espressoCore = "3.6.1"
+               ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:23: Warning: A newer version of androidx.test.espresso:espresso-core than 3.6.1 is available: 3.7.0 [GradleDependency]
+espressoCore = "3.6.1"
+               ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:23: Warning: A newer version of androidx.test.espresso:espresso-core than 3.6.1 is available: 3.7.0 [GradleDependency]
+espressoCore = "3.6.1"
+               ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:51: Warning: A newer version of androidx.media:media than 1.7.0 is available: 1.8.0 [GradleDependency]
+androidx-media = { group = "androidx.media", name = "media", version = "1.7.0" }
+                                                                       ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:51: Warning: A newer version of androidx.media:media than 1.7.0 is available: 1.8.0 [GradleDependency]
+androidx-media = { group = "androidx.media", name = "media", version = "1.7.0" }
+                                                                       ~~~~~~~
+D:\abstra-pro\gradle\libs.versions.toml:51: Warning: A newer version of androidx.media:media than 1.7.0 is available: 1.8.0 [GradleDependency]
+androidx-media = { group = "androidx.media", name = "media", version = "1.7.0" }
+                                                                       ~~~~~~~
+
+   Explanation for issues of type "GradleDependency":
+   This detector looks for usages of libraries where the version you are using
+   is not the current stable release. Using older versions is fine, and there
+   are cases where you deliberately want to stick with an older version.
+   However, you may simply not be aware that a more recent version is
+   available, and that is what this lint check helps find.
+
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\widget\AbstraWidgetProvider.kt:44: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+            val service = MusicPlaybackService.instance
+                ~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\widget\AbstraWidgetProvider.kt:44: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+            val service = MusicPlaybackService.instance
+                          ~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\widget\AbstraWidgetProvider.kt:87: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+                getServicePendingIntent(context, if (isPlaying) MusicPlaybackService.ACTION_PAUSE else MusicPlaybackService.ACTION_PLAY)
+                                                                ~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\widget\AbstraWidgetProvider.kt:87: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+                getServicePendingIntent(context, if (isPlaying) MusicPlaybackService.ACTION_PAUSE else MusicPlaybackService.ACTION_PLAY)
+                                                                                     ~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\widget\AbstraWidgetProvider.kt:87: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+                getServicePendingIntent(context, if (isPlaying) MusicPlaybackService.ACTION_PAUSE else MusicPlaybackService.ACTION_PLAY)
+                                                                                                       ~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\widget\AbstraWidgetProvider.kt:87: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+                getServicePendingIntent(context, if (isPlaying) MusicPlaybackService.ACTION_PAUSE else MusicPlaybackService.ACTION_PLAY)
+                                                                                                                            ~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\widget\AbstraWidgetProvider.kt:91: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+                getServicePendingIntent(context, MusicPlaybackService.ACTION_PREVIOUS)
+                                                 ~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\widget\AbstraWidgetProvider.kt:91: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+                getServicePendingIntent(context, MusicPlaybackService.ACTION_PREVIOUS)
+                                                                      ~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\widget\AbstraWidgetProvider.kt:95: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+                getServicePendingIntent(context, MusicPlaybackService.ACTION_NEXT)
+                                                 ~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\widget\AbstraWidgetProvider.kt:95: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+                getServicePendingIntent(context, MusicPlaybackService.ACTION_NEXT)
+                                                                      ~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\widget\AbstraWidgetProvider.kt:102: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+            val intent = Intent(context, MusicPlaybackService::class.java).apply {
+                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\audio\ExoPlaybackAdapter.kt:75: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+            override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                         ~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\audio\ExoPlaybackAdapter.kt:220: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+        return player.audioSessionId
+                      ~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\MainActivity.kt:63: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+        dev.abstra.pro.service.MusicPlaybackService.audioEngine?.setForegroundState(true)
+                               ~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\MainActivity.kt:64: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+        val intent = Intent(this, MusicPlaybackService::class.java)
+                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\MainActivity.kt:72: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+        dev.abstra.pro.service.MusicPlaybackService.audioEngine?.setForegroundState(false)
+                               ~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\MainActivity.kt:605: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+                        dev.abstra.pro.service.MusicPlaybackService.audioEngine?.effectsManager?.let { effectsManager ->
+                                               ~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\viewmodel\MusicViewModel.kt:43: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+        get() = dev.abstra.pro.service.MusicPlaybackService.audioEngine
+                                       ~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\viewmodel\MusicViewModel.kt:175: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+        dev.abstra.pro.service.MusicPlaybackService.instance?.availableRoutes ?: MutableStateFlow(emptyList())
+                               ~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\viewmodel\MusicViewModel.kt:178: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+        dev.abstra.pro.service.MusicPlaybackService.instance?.selectRoute(id)
+                               ~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\viewmodel\MusicViewModel.kt:178: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+        dev.abstra.pro.service.MusicPlaybackService.instance?.selectRoute(id)
+                                                              ~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\viewmodel\MusicViewModel.kt:328: Error: This declaration is opt-in and its usage should be marked with @androidx.media3.common.util.UnstableApi or @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class) [UnsafeOptInUsageError from androidx.annotation.experimental]
+            dev.abstra.pro.service.MusicPlaybackService.audioEngine?.let { return it }
+                                   ~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "UnsafeOptInUsageError":
+   This API has been flagged as opt-in with error-level severity.
+
+   Any declaration annotated with this marker is considered part of an
+   unstable or
+   otherwise non-standard API surface and its call sites should accept the
+   opt-in
+   aspect of it by using the @OptIn annotation, using the marker annotation
+   --
+   effectively causing further propagation of the opt-in aspect -- or
+   configuring
+   the UnsafeOptInUsageError check's options for project-wide opt-in.
+
+   To configure project-wide opt-in, specify the opt-in option value in
+   lint.xml
+   as a comma-delimited list of opted-in annotations:
+
+   <lint>
+       <issue id="UnsafeOptInUsageError">
+           <option name="opt-in" value="com.foo.ExperimentalBarAnnotation" />
+       </issue>
+   </lint>
+
+   Vendor: Android Open Source Project
+   Identifier: androidx.annotation.experimental
+   Feedback: https://issuetracker.google.com/issues/new?component=459778
+
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\screens\HomeScreen.kt:71: Warning: Modifier parameter should be the first optional parameter [ModifierParameter from androidx.compose.ui]
+    modifier: Modifier = Modifier
+    ~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\screens\SongsScreen.kt:59: Warning: Modifier parameter should be the first optional parameter [ModifierParameter from androidx.compose.ui]
+    modifier: Modifier = Modifier
+    ~~~~~~~~
+
+   Explanation for issues of type "ModifierParameter":
+   The first (or only) Modifier parameter in a Composable function should
+   follow the following rules:
+   - Be named modifier
+   - Have a type of Modifier
+   - Either have no default value, or have a default value of Modifier
+   - If optional, be the first optional parameter in the parameter list
+
+   Vendor: Jetpack Compose
+   Identifier: androidx.compose.ui
+   Feedback: https://issuetracker.google.com/issues/new?component=612128
+
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\screens\PlaylistDetailScreen.kt:269: Warning: Creating a MutableState object with a mutable collection type [MutableCollectionMutableState from androidx.compose.runtime]
+    val selectedIds = remember { mutableStateOf(initialSelectedIds.toMutableSet()) }
+                                 ~~~~~~~~~~~~~~
+
+   Explanation for issues of type "MutableCollectionMutableState":
+   Writes to mutable collections inside a MutableState will not cause a
+   recomposition - only writes to the MutableState itself will. In most cases
+   you should either use a read-only collection (such as List or Map) and
+   assign a new instance to the MutableState when your data changes, or you
+   can use an snapshot-backed collection such as SnapshotStateList or
+   SnapshotStateMap which will correctly cause a recomposition when their
+   contents are modified.
+
+   Vendor: Jetpack Compose
+   Identifier: androidx.compose.runtime
+   Feedback: https://issuetracker.google.com/issues/new?component=612128
+
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\screens\PlaylistDetailScreen.kt:249: Error: StateFlow.value should not be called within composition [StateFlowValueCalledInComposition from androidx.compose.runtime]
+            allSongs = viewModel.allSongs.value,
+                                          ~~~~~
+
+   Explanation for issues of type "StateFlowValueCalledInComposition":
+   Calling StateFlow.value within composition will not observe changes to the
+   StateFlow, so changes might not be reflected within the composition.
+   Instead you should use stateFlow.collectAsState() to observe changes to the
+   StateFlow, and recompose when it changes.
+
+   Vendor: Jetpack Compose
+   Identifier: androidx.compose.runtime
+   Feedback: https://issuetracker.google.com/issues/new?component=612128
+
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\service\MusicPlaybackService.kt:643: Error: The intent action dev.abstra.pro.WIDGET_UPDATE (used to send a broadcast) matches the intent filter of a non-exported component dev.abstra.pro.widget.AbstraWidgetProvider from a manifest. If you are trying to invoke this specific component via the action then you should make the intent explicit by calling Intent.set{Component,Class,ClassName}. [UnsafeImplicitIntentLaunch]
+        sendBroadcast(Intent("dev.abstra.pro.WIDGET_UPDATE"))
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "UnsafeImplicitIntentLaunch":
+   This intent matches a non-exported component within the same app. In many
+   cases, the app developer could instead use an explicit Intent to send
+   messages to their internal components, ensuring that the messages are
+   safely delivered without exposure to malicious apps on the device. Using
+   such implicit intents will result in a crash in an upcoming version of
+   Android.
+
+D:\abstra-pro\app\src\main\AndroidManifest.xml:54: Warning: Exported service does not require permission [ExportedService]
+        <service
+         ~~~~~~~
+
+   Explanation for issues of type "ExportedService":
+   Exported services (services which either set exported=true or contain an
+   intent-filter and do not specify exported=false) should define a permission
+   that an entity must have in order to launch the service or bind to it.
+   Without this, any application can use this service.
+
+   https://goo.gle/ExportedService
+
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\MainActivity.kt:715: Warning: Unnecessary; SDK_INT is always >= 24 [ObsoleteSdkInt]
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\data\repository\MusicRepository.kt:515: Warning: Unnecessary; SDK_INT is always >= 24 [ObsoleteSdkInt]
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "ObsoleteSdkInt":
+   This check flags version checks that are not necessary, because the
+   minSdkVersion (or surrounding known API level) is already at least as high
+   as the version checked for.
+
+   Similarly, it also looks for resources in -vNN folders, such as values-v14
+   where the version qualifier is less than or equal to the minSdkVersion,
+   where the contents should be merged into the best folder.
+
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\viewmodel\MusicViewModel.kt:33: Warning: This field leaks a context object [StaticFieldLeak]
+    private val context: Context = application.applicationContext
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "StaticFieldLeak":
+   A static field will leak contexts.
+
+   Non-static inner classes have an implicit reference to their outer class.
+   If that outer class is for example a Fragment or Activity, then this
+   reference means that the long-running handler/loader/task will hold a
+   reference to the activity which prevents it from getting garbage
+   collected.
+
+   Similarly, direct field references to activities and fragments from these
+   longer running instances can cause leaks.
+
+   ViewModel classes should never point to Views or non-application Contexts.
+
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\screens\FoldersScreen.kt:55: Information: Prefer mutableIntStateOf instead of mutableStateOf [AutoboxingStateCreation from androidx.compose.runtime]
+    var selectedVolumeIndex by remember { mutableStateOf(0) }
+                                          ~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\screens\FullPlayerScreen.kt:545: Information: Prefer mutableLongStateOf instead of mutableStateOf [AutoboxingStateCreation from androidx.compose.runtime]
+    var lastSeekTime by remember { mutableStateOf(0L) }
+                                   ~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\screens\FullPlayerScreen.kt:546: Information: Prefer mutableLongStateOf instead of mutableStateOf [AutoboxingStateCreation from androidx.compose.runtime]
+    var lastSeekPosition by remember { mutableStateOf(0L) }
+                                       ~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\screens\LyricsScreen.kt:71: Information: Prefer mutableLongStateOf instead of mutableStateOf [AutoboxingStateCreation from androidx.compose.runtime]
+    var manualScrollUntilMs by remember { mutableStateOf(0L) }
+                                          ~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\utils\Reorderable.kt:36: Information: Prefer mutableFloatStateOf instead of mutableStateOf [AutoboxingStateCreation from androidx.compose.runtime]
+    var dragOffset by mutableStateOf(0f)
+                      ~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\java\dev\abstra\pro\ui\components\Reorderable.kt:45: Information: Prefer mutableFloatStateOf instead of mutableStateOf [AutoboxingStateCreation from androidx.compose.runtime]
+    var dragOffset by mutableStateOf(0f)
+                      ~~~~~~~~~~~~~~
+
+   Explanation for issues of type "AutoboxingStateCreation":
+   Calling mutableStateOf<T>() when T is either backed by a primitive type on
+   the JVM or is a value class results in a state implementation that requires
+   all state values to be boxed. This usually causes an additional allocation
+   for each state write, and adds some additional work to auto-unbox values
+   when reading the value of the state. Instead, prefer to use a specialized
+   primitive state implementation for Int, Long, Float, and Double when the
+   state does not need to track null values and does not override the default
+   SnapshotMutationPolicy. See mutableIntStateOf(), mutableLongStateOf(),
+   mutableFloatStateOf(), and mutableDoubleStateOf() for more information.
+
+   Vendor: Jetpack Compose
+   Identifier: androidx.compose.runtime
+   Feedback: https://issuetracker.google.com/issues/new?component=612128
+
+D:\abstra-pro\app\src\main\res\layout\abstra_widget_layout.xml:16: Warning: Set android:baselineAligned="false" on this element for better performance [DisableBaselineAlignment]
+    <LinearLayout
+     ~~~~~~~~~~~~
+
+   Explanation for issues of type "DisableBaselineAlignment":
+   When a LinearLayout is used to distribute the space proportionally between
+   nested layouts, the baseline alignment property should be turned off to
+   make the layout computation faster.
+
+D:\abstra-pro\app\src\main\res\layout\notification_media_panel.xml:8: Warning: Possible overdraw: Root element paints background #FF1A1520 with a theme that also paints a background (inferred theme is @style/Theme.AbstraPro) [Overdraw]
+    android:background="#FF1A1520">
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "Overdraw":
+   If you set a background drawable on a root view, then you should use a
+   custom theme where the theme background is null. Otherwise, the theme
+   background will be painted first, only to have your custom background
+   completely cover it; this is called "overdraw".
+
+   NOTE: This detector relies on figuring out which layouts are associated
+   with which activities based on scanning the Java code, and it's currently
+   doing that using an inexact pattern matching algorithm. Therefore, it can
+   incorrectly conclude which activity the layout is associated with and then
+   wrongly complain that a background-theme is hidden.
+
+   If you want your custom background on multiple pages, then you should
+   consider making a custom theme with your custom background and just using
+   that theme instead of a root element background.
+
+   Of course it's possible that your custom drawable is translucent and you
+   want it to be mixed with the background. However, you will get better
+   performance if you pre-mix the background with your drawable and use that
+   resulting image or color as a custom theme background instead.
+
+D:\abstra-pro\app\src\main\res\values\colors.xml:3: Warning: The resource R.color.pookie_primary appears to be unused [UnusedResources]
+    <color name="pookie_primary">#F06FA0</color>
+           ~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\colors.xml:4: Warning: The resource R.color.pookie_bg_base appears to be unused [UnusedResources]
+    <color name="pookie_bg_base">#FDE6EE</color>
+           ~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\colors.xml:5: Warning: The resource R.color.black appears to be unused [UnusedResources]
+    <color name="black">#FF000000</color>
+           ~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\colors.xml:6: Warning: The resource R.color.white appears to be unused [UnusedResources]
+    <color name="white">#FFFFFFFF</color>
+           ~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:4: Warning: The resource R.string.cd_back appears to be unused [UnusedResources]
+    <string name="cd_back">Back</string>
+            ~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:5: Warning: The resource R.string.cd_play appears to be unused [UnusedResources]
+    <string name="cd_play">Play</string>
+            ~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:6: Warning: The resource R.string.cd_pause appears to be unused [UnusedResources]
+    <string name="cd_pause">Pause</string>
+            ~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:7: Warning: The resource R.string.cd_next appears to be unused [UnusedResources]
+    <string name="cd_next">Next</string>
+            ~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:8: Warning: The resource R.string.cd_prev appears to be unused [UnusedResources]
+    <string name="cd_prev">Previous</string>
+            ~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:11: Warning: The resource R.string.tab_home appears to be unused [UnusedResources]
+    <string name="tab_home">Home</string>
+            ~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:12: Warning: The resource R.string.tab_songs appears to be unused [UnusedResources]
+    <string name="tab_songs">Songs</string>
+            ~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:13: Warning: The resource R.string.tab_playlists appears to be unused [UnusedResources]
+    <string name="tab_playlists">Playlists</string>
+            ~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:14: Warning: The resource R.string.tab_folders appears to be unused [UnusedResources]
+    <string name="tab_folders">Folders</string>
+            ~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:17: Warning: The resource R.string.continue_listening appears to be unused [UnusedResources]
+    <string name="continue_listening">Continue Listening</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:18: Warning: The resource R.string.recently_added appears to be unused [UnusedResources]
+    <string name="recently_added">Recently Added</string>
+            ~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:19: Warning: The resource R.string.ai_mixes_title appears to be unused [UnusedResources]
+    <string name="ai_mixes_title">AI Smart Mixes</string>
+            ~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:20: Warning: The resource R.string.ai_mixes_subtitle appears to be unused [UnusedResources]
+    <string name="ai_mixes_subtitle">Curated dynamically on-device</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:21: Warning: The resource R.string.top_artists appears to be unused [UnusedResources]
+    <string name="top_artists">Top Artists</string>
+            ~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:22: Warning: The resource R.string.top_genres appears to be unused [UnusedResources]
+    <string name="top_genres">Top Genres</string>
+            ~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:23: Warning: The resource R.string.unknown_artist appears to be unused [UnusedResources]
+    <string name="unknown_artist">Unknown Artist</string>
+            ~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:24: Warning: The resource R.string.unknown_song appears to be unused [UnusedResources]
+    <string name="unknown_song">Unknown Song</string>
+            ~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:25: Warning: The resource R.string.no_song_playing appears to be unused [UnusedResources]
+    <string name="no_song_playing">No track playing</string>
+            ~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:28: Warning: The resource R.string.ai_mix_daily_title appears to be unused [UnusedResources]
+    <string name="ai_mix_daily_title">Daily AI Flow</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:29: Warning: The resource R.string.ai_mix_daily_sub appears to be unused [UnusedResources]
+    <string name="ai_mix_daily_sub">Harmonic flow from your habits</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:30: Warning: The resource R.string.ai_mix_discovery_title appears to be unused [UnusedResources]
+    <string name="ai_mix_discovery_title">Deep Discovery</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:31: Warning: The resource R.string.ai_mix_discovery_sub appears to be unused [UnusedResources]
+    <string name="ai_mix_discovery_sub">Unheard gems matching your taste</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:32: Warning: The resource R.string.ai_mix_energy_title appears to be unused [UnusedResources]
+    <string name="ai_mix_energy_title">Energy Boost</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:33: Warning: The resource R.string.ai_mix_energy_sub appears to be unused [UnusedResources]
+    <string name="ai_mix_energy_sub">High-tempo cardio and workout beats</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:34: Warning: The resource R.string.ai_mix_chill_title appears to be unused [UnusedResources]
+    <string name="ai_mix_chill_title">Chill &amp; Focus</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:35: Warning: The resource R.string.ai_mix_chill_sub appears to be unused [UnusedResources]
+    <string name="ai_mix_chill_sub">Acoustic and low-fidelity study tracks</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:36: Warning: The resource R.string.ai_mix_morning_title appears to be unused [UnusedResources]
+    <string name="ai_mix_morning_title">Morning Radiance</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:37: Warning: The resource R.string.ai_mix_morning_sub appears to be unused [UnusedResources]
+    <string name="ai_mix_morning_sub">Gentle morning wakeup rhythms</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:38: Warning: The resource R.string.ai_mix_afternoon_title appears to be unused [UnusedResources]
+    <string name="ai_mix_afternoon_title">Afternoon Groove</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:39: Warning: The resource R.string.ai_mix_afternoon_sub appears to be unused [UnusedResources]
+    <string name="ai_mix_afternoon_sub">Uplifting midday soundtracks</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:40: Warning: The resource R.string.ai_mix_evening_title appears to be unused [UnusedResources]
+    <string name="ai_mix_evening_title">Evening Wind Down</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:41: Warning: The resource R.string.ai_mix_evening_sub appears to be unused [UnusedResources]
+    <string name="ai_mix_evening_sub">Mellow sunset vibes</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:42: Warning: The resource R.string.ai_mix_night_title appears to be unused [UnusedResources]
+    <string name="ai_mix_night_title">Midnight Echoes</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:43: Warning: The resource R.string.ai_mix_night_sub appears to be unused [UnusedResources]
+    <string name="ai_mix_night_sub">Late night deep listening</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:44: Warning: The resource R.string.ai_mix_weekend_title appears to be unused [UnusedResources]
+    <string name="ai_mix_weekend_title">Weekend Escape</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:45: Warning: The resource R.string.ai_mix_weekend_sub appears to be unused [UnusedResources]
+    <string name="ai_mix_weekend_sub">Carefree weekend selections</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:46: Warning: The resource R.string.ai_mix_forgotten_title appears to be unused [UnusedResources]
+    <string name="ai_mix_forgotten_title">Forgotten Gems</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:47: Warning: The resource R.string.ai_mix_forgotten_sub appears to be unused [UnusedResources]
+    <string name="ai_mix_forgotten_sub">Tracks you once loved, revisited</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:48: Warning: The resource R.string.ai_mix_acoustic_title appears to be unused [UnusedResources]
+    <string name="ai_mix_acoustic_title">Acoustic &amp; Live</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:49: Warning: The resource R.string.ai_mix_acoustic_sub appears to be unused [UnusedResources]
+    <string name="ai_mix_acoustic_sub">Raw instruments and unplugged sessions</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:50: Warning: The resource R.string.ai_mix_artist_title appears to be unused [UnusedResources]
+    <string name="ai_mix_artist_title">%1$s Radio</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:51: Warning: The resource R.string.ai_mix_artist_sub appears to be unused [UnusedResources]
+    <string name="ai_mix_artist_sub">Spotlight on %1$s &amp; kindred tracks</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:54: Warning: The resource R.string.equalizer_title appears to be unused [UnusedResources]
+    <string name="equalizer_title">Equalizer &amp; DSP</string>
+            ~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:55: Warning: The resource R.string.eq_10_band appears to be unused [UnusedResources]
+    <string name="eq_10_band">10-Band EQ</string>
+            ~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:56: Warning: The resource R.string.bass_boost appears to be unused [UnusedResources]
+    <string name="bass_boost">Bass Boost</string>
+            ~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:57: Warning: The resource R.string.virtualizer appears to be unused [UnusedResources]
+    <string name="virtualizer">Spatial Virtualizer</string>
+            ~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:58: Warning: The resource R.string.loudness_enhancer appears to be unused [UnusedResources]
+    <string name="loudness_enhancer">Loudness Enhancer</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:59: Warning: The resource R.string.stereo_balance appears to be unused [UnusedResources]
+    <string name="stereo_balance">Stereo Balance</string>
+            ~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:60: Warning: The resource R.string.reverb appears to be unused [UnusedResources]
+    <string name="reverb">Reverb</string>
+            ~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:61: Warning: The resource R.string.dynamics_processor appears to be unused [UnusedResources]
+    <string name="dynamics_processor">Dynamics Processor</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:62: Warning: The resource R.string.speed_pitch appears to be unused [UnusedResources]
+    <string name="speed_pitch">Speed &amp; Pitch</string>
+            ~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:63: Warning: The resource R.string.preset_name appears to be unused [UnusedResources]
+    <string name="preset_name">Preset Name</string>
+            ~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:64: Warning: The resource R.string.save appears to be unused [UnusedResources]
+    <string name="save">Save</string>
+            ~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:65: Warning: The resource R.string.cancel appears to be unused [UnusedResources]
+    <string name="cancel">Cancel</string>
+            ~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:66: Warning: The resource R.string.delete appears to be unused [UnusedResources]
+    <string name="delete">Delete</string>
+            ~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:69: Warning: The resource R.string.lyrics_title appears to be unused [UnusedResources]
+    <string name="lyrics_title">Lyrics</string>
+            ~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:70: Warning: The resource R.string.no_lyrics_found appears to be unused [UnusedResources]
+    <string name="no_lyrics_found">No synced lyrics available for this track</string>
+            ~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:71: Warning: The resource R.string.keep_screen_on appears to be unused [UnusedResources]
+    <string name="keep_screen_on">Keep Screen On</string>
+            ~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:72: Warning: The resource R.string.lyrics_offset appears to be unused [UnusedResources]
+    <string name="lyrics_offset">Time Offset</string>
+            ~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:75: Warning: The resource R.string.internal_storage appears to be unused [UnusedResources]
+    <string name="internal_storage">Internal Storage</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:76: Warning: The resource R.string.sd_card appears to be unused [UnusedResources]
+    <string name="sd_card">SD Card</string>
+            ~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:77: Warning: The resource R.string.folder_browser_title appears to be unused [UnusedResources]
+    <string name="folder_browser_title">Folders</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:80: Warning: The resource R.string.output_bluetooth appears to be unused [UnusedResources]
+    <string name="output_bluetooth">Bluetooth</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:81: Warning: The resource R.string.output_headphones appears to be unused [UnusedResources]
+    <string name="output_headphones">Headphones</string>
+            ~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\values\strings.xml:82: Warning: The resource R.string.output_speaker appears to be unused [UnusedResources]
+    <string name="output_speaker">Speaker</string>
+            ~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\drawable\widget_cover_circle_shape.xml:2: Warning: The resource R.drawable.widget_cover_circle_shape appears to be unused [UnusedResources]
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+^
+
+   Explanation for issues of type "UnusedResources":
+   Unused resources make applications larger and slow down builds.
+
+
+   The unused resource check can ignore tests. If you want to include
+   resources that are only referenced from tests, consider packaging them in a
+   test source set instead.
+
+   You can include test sources in the unused resource check by setting the
+   system property lint.unused-resources.include-tests =true, and to exclude
+   them (usually for performance reasons), use
+   lint.unused-resources.exclude-tests =true.
+   ,
+
+D:\abstra-pro\app\src\main\res\layout\abstra_widget_layout.xml:76: Warning: Avoid using sizes smaller than 11sp: 10sp [SmallSp]
+                    android:textSize="10sp"
+                    ~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "SmallSp":
+   Avoid using sizes smaller than 11sp.
+
+D:\abstra-pro\app\src\main\res\layout\abstra_widget_layout.xml:9: Warning: Missing contentDescription attribute on image [ContentDescription]
+    <ImageView
+     ~~~~~~~~~
+D:\abstra-pro\app\src\main\res\layout\abstra_widget_layout.xml:32: Warning: Missing contentDescription attribute on image [ContentDescription]
+            <ImageView
+             ~~~~~~~~~
+D:\abstra-pro\app\src\main\res\layout\abstra_widget_layout.xml:63: Warning: Missing contentDescription attribute on image [ContentDescription]
+                <ImageView
+                 ~~~~~~~~~
+
+   Explanation for issues of type "ContentDescription":
+   Non-textual widgets like ImageViews and ImageButtons should use the
+   contentDescription attribute to specify a textual description of the widget
+   such that screen readers and other accessibility tools can adequately
+   describe the user interface.
+
+   Note that elements in application screens that are purely decorative and do
+   not provide any content or enable a user action should not have
+   accessibility content descriptions. In this case, set their descriptions to
+   @null. If your app's minSdkVersion is 16 or higher, you can instead set
+   these graphical elements' android:importantForAccessibility attributes to
+   no.
+
+   Note that for text fields, you should not set both the hint and the
+   contentDescription attributes since the hint will never be shown. Just set
+   the hint.
+
+   https://developer.android.com/guide/topics/ui/accessibility/apps#special-cases
+
+D:\abstra-pro\app\src\main\res\layout\abstra_widget_layout.xml:74: Warning: Hardcoded string "Speaker", should use @string resource [HardcodedText]
+                    android:text="Speaker"
+                    ~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\layout\abstra_widget_layout.xml:93: Warning: Hardcoded string "Abstra Pro", should use @string resource [HardcodedText]
+                    android:text="Abstra Pro"
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\layout\abstra_widget_layout.xml:106: Warning: Hardcoded string "Select a track to play", should use @string resource [HardcodedText]
+                    android:text="Select a track to play"
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\layout\abstra_widget_layout.xml:129: Warning: Hardcoded string "Previous", should use @string resource [HardcodedText]
+                        android:contentDescription="Previous" />
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\layout\abstra_widget_layout.xml:141: Warning: Hardcoded string "Play/Pause", should use @string resource [HardcodedText]
+                        android:contentDescription="Play/Pause" />
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\layout\abstra_widget_layout.xml:151: Warning: Hardcoded string "Next", should use @string resource [HardcodedText]
+                        android:contentDescription="Next" />
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\layout\notification_media_panel.xml:74: Warning: Hardcoded string "Stop playback", should use @string resource [HardcodedText]
+            android:contentDescription="Stop playback" />
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\layout\notification_media_panel.xml:91: Warning: Hardcoded string "0:00", should use @string resource [HardcodedText]
+            android:text="0:00"
+            ~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\layout\notification_media_panel.xml:111: Warning: Hardcoded string "0:00", should use @string resource [HardcodedText]
+            android:text="0:00"
+            ~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\layout\notification_media_panel.xml:132: Warning: Hardcoded string "Previous", should use @string resource [HardcodedText]
+            android:contentDescription="Previous" />
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\layout\notification_media_panel.xml:142: Warning: Hardcoded string "Play or pause", should use @string resource [HardcodedText]
+            android:contentDescription="Play or pause" />
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\layout\notification_media_panel.xml:152: Warning: Hardcoded string "Next", should use @string resource [HardcodedText]
+            android:contentDescription="Next" />
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:\abstra-pro\app\src\main\res\layout\notification_media_panel.xml:162: Warning: Hardcoded string "Volume", should use @string resource [HardcodedText]
+            android:contentDescription="Volume" />
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "HardcodedText":
+   Hardcoding text attributes directly in layout files is bad for several
+   reasons:
+
+   * When creating configuration variations (for example for landscape or
+   portrait) you have to repeat the actual text (and keep it up to date when
+   making changes)
+
+   * The application cannot be translated to other languages by just adding
+   new translations for existing string resources.
+
+   There are quickfixes to automatically extract this hardcoded string into a
+   resource lookup.
+
+25 errors, 161 warnings

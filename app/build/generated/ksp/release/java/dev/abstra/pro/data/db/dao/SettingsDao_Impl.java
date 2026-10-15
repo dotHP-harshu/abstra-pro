@@ -50,6 +50,10 @@ public final class SettingsDao_Impl implements SettingsDao {
 
   private final SharedSQLiteStatement __preparedStmtOfMarkAskedForName;
 
+  private final SharedSQLiteStatement __preparedStmtOfSetSelectedFont;
+
+  private final SharedSQLiteStatement __preparedStmtOfSetGreetingStyle;
+
   private final SharedSQLiteStatement __preparedStmtOfDeleteCustomPreset;
 
   public SettingsDao_Impl(@NonNull final RoomDatabase __db) {
@@ -58,7 +62,7 @@ public final class SettingsDao_Impl implements SettingsDao {
       @Override
       @NonNull
       protected String createQuery() {
-        return "INSERT OR REPLACE INTO `app_settings` (`id`,`userName`,`greetingEnabled`,`hasAskedForName`,`excludedFolderPaths`,`themeMode`,`accentColor`,`crossfadeSeconds`,`gaplessEnabled`,`defaultSleepTimerMin`,`keepScreenOnInPlayer`,`sortOption`,`showQueueOnSongClick`,`playlistOrder`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        return "INSERT OR REPLACE INTO `app_settings` (`id`,`userName`,`greetingEnabled`,`hasAskedForName`,`excludedFolderPaths`,`themeMode`,`accentColor`,`crossfadeSeconds`,`gaplessEnabled`,`defaultSleepTimerMin`,`keepScreenOnInPlayer`,`sortOption`,`showQueueOnSongClick`,`playlistOrder`,`selectedFont`,`greetingStyle`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
       }
 
       @Override
@@ -87,6 +91,8 @@ public final class SettingsDao_Impl implements SettingsDao {
         final int _tmp_4 = entity.getShowQueueOnSongClick() ? 1 : 0;
         statement.bindLong(13, _tmp_4);
         statement.bindString(14, entity.getPlaylistOrder());
+        statement.bindString(15, entity.getSelectedFont());
+        statement.bindString(16, entity.getGreetingStyle());
       }
     };
     this.__insertionAdapterOfEffectSettingsEntity = new EntityInsertionAdapter<EffectSettingsEntity>(__db) {
@@ -170,6 +176,22 @@ public final class SettingsDao_Impl implements SettingsDao {
       @NonNull
       public String createQuery() {
         final String _query = "UPDATE app_settings SET hasAskedForName = 1 WHERE id = 0";
+        return _query;
+      }
+    };
+    this.__preparedStmtOfSetSelectedFont = new SharedSQLiteStatement(__db) {
+      @Override
+      @NonNull
+      public String createQuery() {
+        final String _query = "UPDATE app_settings SET selectedFont = ? WHERE id = 0";
+        return _query;
+      }
+    };
+    this.__preparedStmtOfSetGreetingStyle = new SharedSQLiteStatement(__db) {
+      @Override
+      @NonNull
+      public String createQuery() {
+        final String _query = "UPDATE app_settings SET greetingStyle = ? WHERE id = 0";
         return _query;
       }
     };
@@ -339,6 +361,56 @@ public final class SettingsDao_Impl implements SettingsDao {
   }
 
   @Override
+  public Object setSelectedFont(final String font, final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        final SupportSQLiteStatement _stmt = __preparedStmtOfSetSelectedFont.acquire();
+        int _argIndex = 1;
+        _stmt.bindString(_argIndex, font);
+        try {
+          __db.beginTransaction();
+          try {
+            _stmt.executeUpdateDelete();
+            __db.setTransactionSuccessful();
+            return Unit.INSTANCE;
+          } finally {
+            __db.endTransaction();
+          }
+        } finally {
+          __preparedStmtOfSetSelectedFont.release(_stmt);
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object setGreetingStyle(final String style, final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        final SupportSQLiteStatement _stmt = __preparedStmtOfSetGreetingStyle.acquire();
+        int _argIndex = 1;
+        _stmt.bindString(_argIndex, style);
+        try {
+          __db.beginTransaction();
+          try {
+            _stmt.executeUpdateDelete();
+            __db.setTransactionSuccessful();
+            return Unit.INSTANCE;
+          } finally {
+            __db.endTransaction();
+          }
+        } finally {
+          __preparedStmtOfSetGreetingStyle.release(_stmt);
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
   public Object deleteCustomPreset(final String name,
       final Continuation<? super Unit> $completion) {
     return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
@@ -388,6 +460,8 @@ public final class SettingsDao_Impl implements SettingsDao {
           final int _cursorIndexOfSortOption = CursorUtil.getColumnIndexOrThrow(_cursor, "sortOption");
           final int _cursorIndexOfShowQueueOnSongClick = CursorUtil.getColumnIndexOrThrow(_cursor, "showQueueOnSongClick");
           final int _cursorIndexOfPlaylistOrder = CursorUtil.getColumnIndexOrThrow(_cursor, "playlistOrder");
+          final int _cursorIndexOfSelectedFont = CursorUtil.getColumnIndexOrThrow(_cursor, "selectedFont");
+          final int _cursorIndexOfGreetingStyle = CursorUtil.getColumnIndexOrThrow(_cursor, "greetingStyle");
           final SettingsEntity _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -432,7 +506,11 @@ public final class SettingsDao_Impl implements SettingsDao {
             _tmpShowQueueOnSongClick = _tmp_4 != 0;
             final String _tmpPlaylistOrder;
             _tmpPlaylistOrder = _cursor.getString(_cursorIndexOfPlaylistOrder);
-            _result = new SettingsEntity(_tmpId,_tmpUserName,_tmpGreetingEnabled,_tmpHasAskedForName,_tmpExcludedFolderPaths,_tmpThemeMode,_tmpAccentColor,_tmpCrossfadeSeconds,_tmpGaplessEnabled,_tmpDefaultSleepTimerMin,_tmpKeepScreenOnInPlayer,_tmpSortOption,_tmpShowQueueOnSongClick,_tmpPlaylistOrder);
+            final String _tmpSelectedFont;
+            _tmpSelectedFont = _cursor.getString(_cursorIndexOfSelectedFont);
+            final String _tmpGreetingStyle;
+            _tmpGreetingStyle = _cursor.getString(_cursorIndexOfGreetingStyle);
+            _result = new SettingsEntity(_tmpId,_tmpUserName,_tmpGreetingEnabled,_tmpHasAskedForName,_tmpExcludedFolderPaths,_tmpThemeMode,_tmpAccentColor,_tmpCrossfadeSeconds,_tmpGaplessEnabled,_tmpDefaultSleepTimerMin,_tmpKeepScreenOnInPlayer,_tmpSortOption,_tmpShowQueueOnSongClick,_tmpPlaylistOrder,_tmpSelectedFont,_tmpGreetingStyle);
           } else {
             _result = null;
           }
@@ -474,6 +552,8 @@ public final class SettingsDao_Impl implements SettingsDao {
           final int _cursorIndexOfSortOption = CursorUtil.getColumnIndexOrThrow(_cursor, "sortOption");
           final int _cursorIndexOfShowQueueOnSongClick = CursorUtil.getColumnIndexOrThrow(_cursor, "showQueueOnSongClick");
           final int _cursorIndexOfPlaylistOrder = CursorUtil.getColumnIndexOrThrow(_cursor, "playlistOrder");
+          final int _cursorIndexOfSelectedFont = CursorUtil.getColumnIndexOrThrow(_cursor, "selectedFont");
+          final int _cursorIndexOfGreetingStyle = CursorUtil.getColumnIndexOrThrow(_cursor, "greetingStyle");
           final SettingsEntity _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -518,7 +598,11 @@ public final class SettingsDao_Impl implements SettingsDao {
             _tmpShowQueueOnSongClick = _tmp_4 != 0;
             final String _tmpPlaylistOrder;
             _tmpPlaylistOrder = _cursor.getString(_cursorIndexOfPlaylistOrder);
-            _result = new SettingsEntity(_tmpId,_tmpUserName,_tmpGreetingEnabled,_tmpHasAskedForName,_tmpExcludedFolderPaths,_tmpThemeMode,_tmpAccentColor,_tmpCrossfadeSeconds,_tmpGaplessEnabled,_tmpDefaultSleepTimerMin,_tmpKeepScreenOnInPlayer,_tmpSortOption,_tmpShowQueueOnSongClick,_tmpPlaylistOrder);
+            final String _tmpSelectedFont;
+            _tmpSelectedFont = _cursor.getString(_cursorIndexOfSelectedFont);
+            final String _tmpGreetingStyle;
+            _tmpGreetingStyle = _cursor.getString(_cursorIndexOfGreetingStyle);
+            _result = new SettingsEntity(_tmpId,_tmpUserName,_tmpGreetingEnabled,_tmpHasAskedForName,_tmpExcludedFolderPaths,_tmpThemeMode,_tmpAccentColor,_tmpCrossfadeSeconds,_tmpGaplessEnabled,_tmpDefaultSleepTimerMin,_tmpKeepScreenOnInPlayer,_tmpSortOption,_tmpShowQueueOnSongClick,_tmpPlaylistOrder,_tmpSelectedFont,_tmpGreetingStyle);
           } else {
             _result = null;
           }
