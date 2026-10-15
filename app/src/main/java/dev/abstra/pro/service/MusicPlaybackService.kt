@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -13,8 +14,10 @@ import android.net.Uri
 import android.os.Build
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.SimpleBasePlayer
 import androidx.media3.common.util.UnstableApi
@@ -22,6 +25,7 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import dev.abstra.pro.data.model.RepeatMode
 import dev.abstra.pro.MainActivity
 import dev.abstra.pro.R
 import dev.abstra.pro.audio.AudioEngine
@@ -33,6 +37,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -55,6 +60,10 @@ class MusicPlaybackService : MediaSessionService() {
     private val NOTIFICATION_ID = 1001
     private var progressTickerJob: Job? = null
     private var hasPostedFirstNotification = false
+
+    private var cachedAlbumArtUri: String? = null
+    private var cachedAlbumArtBitmap: Bitmap? = null
+    private var cachedAlbumArtBytes: ByteArray? = null
 
     companion object {
         const val ACTION_PLAY = "dev.abstra.pro.ACTION_PLAY"
@@ -108,19 +117,45 @@ class MusicPlaybackService : MediaSessionService() {
             }
         }
         serviceScope.launch {
-            audioEngine.isPlaying.collect { 
-                updateNotification()
-                broadcastWidgetUpdate()
+            audioEngine.queue.collect {
                 invalidatePlayerState?.invoke()
             }
         }
         serviceScope.launch {
-            var lastInvalidatedAt = 0L
-            audioEngine.currentPosition.sample(50).collect {
-                if (audioEngine.isPlaying.value && it - lastInvalidatedAt > 250) {
-                    invalidatePlayerState?.invoke()
-                    lastInvalidatedAt = it
-                }
+            audioEngine.currentIndex.collect {
+                invalidatePlayerState?.invoke()
+            }
+        }
+        serviceScope.launch {
+            audioEngine.repeatMode.collect {
+                invalidatePlayerState?.invoke()
+            }
+        }
+        serviceScope.launch {
+            audioEngine.isShuffle.collect {
+                invalidatePlayerState?.invoke()
+            }
+        }
+        
+        serviceScope.launch {
+            audioEngine.seekEvents.collect {
+                invalidatePlayerState?.invoke()
+            }
+        }
+        serviceScope.launch {
+            audioEngine.playbackSpeed.collect {
+                invalidatePlayerState?.invoke()
+            }
+        }
+
+        audioEngine.onRepeatModeChanged = { _ -> invalidatePlayerState?.invoke() }
+        audioEngine.onShuffleChanged = { _ -> invalidatePlayerState?.invoke() }
+        
+        serviceScope.launch {
+            audioEngine.isPlaying.collect { 
+                updateNotification()
+                broadcastWidgetUpdate()
+                invalidatePlayerState?.invoke()
             }
         }
         startProgressTicker()
@@ -156,10 +191,17 @@ class MusicPlaybackService : MediaSessionService() {
                             delay(150)
                             updateNotification()
                         }
-                        return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
-                            .setAvailablePlayerCommands(
-                                MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS
+                        val playerCommands = MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS.buildUpon()
+                            .addAll(
+                                Player.COMMAND_SET_REPEAT_MODE,
+                                Player.COMMAND_SET_SHUFFLE_MODE,
+                                Player.COMMAND_SEEK_TO_MEDIA_ITEM,
+                                Player.COMMAND_GET_TIMELINE,
+                                Player.COMMAND_GET_CURRENT_MEDIA_ITEM
                             )
+                            .build()
+                        return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                            .setAvailablePlayerCommands(playerCommands)
                             .build()
                     }
                 })
@@ -195,6 +237,11 @@ class MusicPlaybackService : MediaSessionService() {
      */
     private fun createPlayerAdapter(): SimpleBasePlayer {
         return object : SimpleBasePlayer(android.os.Looper.getMainLooper()) {
+            private var cachedQueueRef: List<dev.abstra.pro.data.model.Song>? = null
+            private var cachedCurrentSongId: String? = null
+            private var cachedArtBytesRef: ByteArray? = null
+            private var cachedMediaItemsData: List<MediaItemData> = emptyList()
+
             init {
                 invalidatePlayerState = {
                     serviceScope.launch(Dispatchers.Main) { invalidateState() }
@@ -206,56 +253,127 @@ class MusicPlaybackService : MediaSessionService() {
                 val isPlaying = audioEngine.isPlaying.value
                 val duration = audioEngine.duration.value.coerceAtLeast(1L)
                 val position = audioEngine.currentPosition.value.coerceIn(0L, duration)
+                val q = audioEngine.queue.value
+                val activeIdx = audioEngine.currentIndex.value
 
                 val cmds = Player.Commands.Builder()
                     .addAll(
                         Player.COMMAND_PLAY_PAUSE,
-                        Player.COMMAND_SEEK_TO_NEXT,
+                        Player.COMMAND_PREPARE,
+                        Player.COMMAND_STOP,
+                        Player.COMMAND_SEEK_TO_DEFAULT_POSITION,
+                        Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
+                        Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
                         Player.COMMAND_SEEK_TO_PREVIOUS,
-                        Player.COMMAND_SET_MEDIA_ITEM,
-                        Player.COMMAND_SET_VOLUME,
-                        Player.COMMAND_STOP
+                        Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+                        Player.COMMAND_SEEK_TO_NEXT,
+                        Player.COMMAND_SEEK_TO_MEDIA_ITEM,
+                        Player.COMMAND_SET_SHUFFLE_MODE,
+                        Player.COMMAND_SET_REPEAT_MODE,
+                        Player.COMMAND_GET_CURRENT_MEDIA_ITEM,
+                        Player.COMMAND_GET_TIMELINE,
+                        Player.COMMAND_GET_METADATA,
+                        Player.COMMAND_SET_SPEED_AND_PITCH,
+                        Player.COMMAND_SET_VOLUME
                     ).build()
+
+                val playerRepeatMode = when (audioEngine.repeatMode.value) {
+                    RepeatMode.REPEAT_ALL -> Player.REPEAT_MODE_ALL
+                    RepeatMode.REPEAT_ONE -> Player.REPEAT_MODE_ONE
+                    RepeatMode.REPEAT_OFF -> Player.REPEAT_MODE_OFF
+                }
 
                 val builder = State.Builder()
                     .setAvailableCommands(cmds)
                     .setPlayWhenReady(isPlaying, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
                     .setPlaybackState(if (song != null) Player.STATE_READY else Player.STATE_IDLE)
                     .setVolume(audioEngine.currentVolume.value)
+                    .setRepeatMode(playerRepeatMode)
+                    .setShuffleModeEnabled(audioEngine.isShuffle.value)
+                    .setPlaybackParameters(PlaybackParameters(audioEngine.playbackSpeed.value, 1.0f))
 
-                if (song != null) {
-                    val metadata = MediaMetadata.Builder()
-                        .setTitle(song.title)
-                        .setArtist(song.artist)
-                        .setAlbumTitle(song.album)
-                        .setIsPlayable(true)
-                        .setIsBrowsable(false)
-                        .setArtworkUri(
-                            song.uriString.takeIf { it.isNotBlank() }?.let { Uri.parse(it) }
-                        )
-                        .build()
+                val effectiveQueue = if (q.isNotEmpty()) q else if (song != null) listOf(song) else emptyList()
 
-                    // The metadata is set on the MediaItem itself.
-                    // builder.setMediaMetadata(metadata) // REMOVED: Unresolved reference
+                if (effectiveQueue.isNotEmpty()) {
+                    if (effectiveQueue !== cachedQueueRef || song?.id != cachedCurrentSongId || cachedAlbumArtBytes !== cachedArtBytesRef) {
+                        cachedQueueRef = effectiveQueue
+                        cachedCurrentSongId = song?.id
+                        cachedArtBytesRef = cachedAlbumArtBytes
 
-                    val mediaItem = MediaItem.Builder()
-                        .setMediaId(song.id)
-                        .setMediaMetadata(metadata)
-                        .setUri(song.uriString.takeIf { it.isNotBlank() }?.let { Uri.parse(it) })
-                        .build()
+                        cachedMediaItemsData = effectiveQueue.mapIndexed { index, s ->
+                            val metadataBuilder = MediaMetadata.Builder()
+                                .setTitle(s.title)
+                                .setArtist(s.artist)
+                                .setAlbumTitle(s.album)
+                                .setIsPlayable(true)
+                                .setIsBrowsable(false)
 
-                    builder.setPlaylist(
-                        listOf(
-                            MediaItemData.Builder(song.id)
-                                .setMediaItem(mediaItem)
-                                .setDurationUs(song.durationMs * 1000L)
+                            val artUri = if (!s.coverUrl.isNullOrBlank()) {
+                                Uri.parse(s.coverUrl)
+                            } else if (s.albumId > 0L) {
+                                ContentUris.withAppendedId(
+                                    Uri.parse("content://media/external/audio/albumart"),
+                                    s.albumId
+                                )
+                            } else null
+
+                            if (artUri != null) {
+                                metadataBuilder.setArtworkUri(artUri)
+                            }
+
+                            if (s.id == song?.id && cachedAlbumArtBytes != null) {
+                                metadataBuilder.setArtworkData(cachedAlbumArtBytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                            }
+
+                            val mediaItem = MediaItem.Builder()
+                                .setMediaId(s.id)
+                                .setMediaMetadata(metadataBuilder.build())
+                                .setUri(s.uriString.takeIf { it.isNotBlank() }?.let { Uri.parse(it) })
                                 .build()
-                        )
-                    )
+
+                            MediaItemData.Builder("${s.id}_$index")
+                                .setMediaItem(mediaItem)
+                                .setDurationUs(s.durationMs.coerceAtLeast(1L) * 1000L)
+                                .build()
+                        }
+                    }
+
+                    val currentIndex = if (activeIdx in effectiveQueue.indices) {
+                        activeIdx
+                    } else if (song != null) {
+                        effectiveQueue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+                    } else {
+                        0
+                    }
+
+                    builder.setPlaylist(cachedMediaItemsData)
+                    builder.setCurrentMediaItemIndex(currentIndex)
                     builder.setContentPositionMs(PositionSupplier { audioEngine.currentPosition.value })
                 }
 
                 return builder.build()
+            }
+
+            override fun handlePrepare(): ListenableFuture<*> = Futures.immediateVoidFuture()
+
+            override fun handleSetPlaybackParameters(playbackParameters: PlaybackParameters): ListenableFuture<*> {
+                audioEngine.setPlaybackSpeed(playbackParameters.speed)
+                return Futures.immediateVoidFuture()
+            }
+
+            override fun handleSetRepeatMode(repeatMode: Int): ListenableFuture<*> {
+                val mode = when (repeatMode) {
+                    Player.REPEAT_MODE_ALL -> RepeatMode.REPEAT_ALL
+                    Player.REPEAT_MODE_ONE -> RepeatMode.REPEAT_ONE
+                    else -> RepeatMode.REPEAT_OFF
+                }
+                audioEngine.setRepeatMode(mode)
+                return Futures.immediateVoidFuture()
+            }
+
+            override fun handleSetShuffleModeEnabled(shuffleModeEnabled: Boolean): ListenableFuture<*> {
+                audioEngine.setShuffle(shuffleModeEnabled)
+                return Futures.immediateVoidFuture()
             }
 
             override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
@@ -264,10 +382,24 @@ class MusicPlaybackService : MediaSessionService() {
             }
 
             override fun handleSeek(mediaItemIndex: Int, positionMs: Long, seekCommand: Int): ListenableFuture<*> {
+                val targetPos = if (positionMs == C.TIME_UNSET || positionMs < 0) 0L else positionMs
                 when (seekCommand) {
-                    Player.COMMAND_SEEK_TO_NEXT -> audioEngine.playNext()
-                    Player.COMMAND_SEEK_TO_PREVIOUS -> audioEngine.playPrevious()
-                    else -> if (positionMs >= 0) audioEngine.seekTo(positionMs)
+                    Player.COMMAND_SEEK_TO_NEXT, Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM -> audioEngine.playNext()
+                    Player.COMMAND_SEEK_TO_PREVIOUS, Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> audioEngine.playPrevious()
+                    Player.COMMAND_SEEK_TO_MEDIA_ITEM -> {
+                        if (mediaItemIndex != C.INDEX_UNSET && mediaItemIndex != audioEngine.currentIndex.value) {
+                            audioEngine.playTrackAtIndex(mediaItemIndex, initialPositionMs = targetPos)
+                        } else {
+                            audioEngine.seekTo(targetPos)
+                        }
+                    }
+                    else -> {
+                        if (mediaItemIndex != C.INDEX_UNSET && mediaItemIndex != audioEngine.currentIndex.value) {
+                            audioEngine.playTrackAtIndex(mediaItemIndex, initialPositionMs = targetPos)
+                        } else {
+                            audioEngine.seekTo(targetPos)
+                        }
+                    }
                 }
                 return Futures.immediateVoidFuture()
             }
@@ -317,9 +449,29 @@ class MusicPlaybackService : MediaSessionService() {
         val nextIntent = makeServiceIntent(ACTION_NEXT, 3)
         val stopIntent = makeServiceIntent(ACTION_STOP, 4)
         val volumeIntent = makeActivityIntentForVolume(5)
-        val albumArt: Bitmap? = song?.uriString
-            ?.takeIf { it.isNotBlank() && !it.startsWith("demo_") }
-            ?.let { loadAlbumArt(it) }
+
+        val uri = song?.uriString?.takeIf { it.isNotBlank() && !it.startsWith("demo_") }
+        if (uri != null && uri != cachedAlbumArtUri) {
+            cachedAlbumArtUri = uri
+            cachedAlbumArtBitmap = null
+            cachedAlbumArtBytes = null
+            serviceScope.launch(Dispatchers.IO) {
+                val (bmp, bytes) = loadAlbumArt(uri)
+                withContext(Dispatchers.Main) {
+                    if (cachedAlbumArtUri == uri) {
+                        cachedAlbumArtBitmap = bmp
+                        cachedAlbumArtBytes = bytes
+                        updateNotification()
+                        invalidatePlayerState?.invoke()
+                    }
+                }
+            }
+        } else if (uri == null) {
+            cachedAlbumArtUri = null
+            cachedAlbumArtBitmap = null
+            cachedAlbumArtBytes = null
+        }
+        val albumArt = cachedAlbumArtBitmap
 
         val expanded = RemoteViews(packageName, R.layout.notification_media_panel).apply {
             setTextViewText(R.id.title, song?.title ?: "Abstra Pro")
@@ -380,8 +532,13 @@ class MusicPlaybackService : MediaSessionService() {
                     .setCancelButtonIntent(stopIntent)
                     .setMediaSession(mediaSession?.sessionCompatToken)
             )
-            .setCustomBigContentView(expanded)
-            .setCustomContentView(compact)
+
+        // Android 13+ (TIRAMISU) uses the rich system MediaStyle notification natively.
+        // On older versions, apply custom remote views.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            builder.setCustomBigContentView(expanded)
+            builder.setCustomContentView(compact)
+        }
 
         try {
             startForeground(NOTIFICATION_ID, builder.build())
@@ -414,12 +571,11 @@ class MusicPlaybackService : MediaSessionService() {
         progressTickerJob?.cancel()
         progressTickerJob = serviceScope.launch {
             while (true) {
-                delay(250L)
-                // Push fresh state to the system so the QS tile, lockscreen,
-                // and notification slider all update.
-                invalidatePlayerState?.invoke()
+                delay(1000L)
                 if (audioEngine.isPlaying.value) {
-                    updateNotification()
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                        updateNotification()
+                    }
                 }
             }
         }
@@ -448,17 +604,40 @@ class MusicPlaybackService : MediaSessionService() {
         super.onTaskRemoved(rootIntent)
     }
 
-    private fun loadAlbumArt(uriString: String): Bitmap? = try {
+    private fun loadAlbumArt(uriString: String): Pair<Bitmap?, ByteArray?> = try {
         val retriever = MediaMetadataRetriever()
         retriever.setDataSource(this, Uri.parse(uriString))
         val art = retriever.embeddedPicture
         retriever.release()
         if (art != null) {
             val opts = BitmapFactory.Options().apply { inSampleSize = 4 }
-            val bmp = BitmapFactory.decodeByteArray(art, 0, art.size, opts) ?: return null
-            Bitmap.createScaledBitmap(bmp, 256, 256, true)
-        } else null
-    } catch (_: Exception) { null }
+            val bmp = BitmapFactory.decodeByteArray(art, 0, art.size, opts)
+            val scaledBmp = if (bmp != null) {
+                val maxDim = 256
+                val width = bmp.width
+                val height = bmp.height
+                if (width <= maxDim && height <= maxDim) {
+                    bmp
+                } else {
+                    val ratio = width.toFloat() / height.toFloat()
+                    val (targetWidth, targetHeight) = if (width > height) {
+                        maxDim to (maxDim / ratio).toInt().coerceAtLeast(1)
+                    } else {
+                        (maxDim * ratio).toInt().coerceAtLeast(1) to maxDim
+                    }
+                    Bitmap.createScaledBitmap(bmp, targetWidth, targetHeight, true)
+                }
+            } else null
+            val bytes = if (art.size <= 256 * 1024) {
+                art
+            } else if (scaledBmp != null) {
+                val stream = java.io.ByteArrayOutputStream()
+                scaledBmp.compress(Bitmap.CompressFormat.JPEG, 85, stream)
+                stream.toByteArray()
+            } else null
+            Pair(scaledBmp, bytes)
+        } else Pair(null, null)
+    } catch (_: Exception) { Pair(null, null) }
 
     private fun broadcastWidgetUpdate() {
         sendBroadcast(Intent("dev.abstra.pro.WIDGET_UPDATE"))
@@ -469,7 +648,7 @@ class MusicPlaybackService : MediaSessionService() {
         progressTickerJob?.cancel()
         instance = null
         mediaSession?.release()
-        audioEngine.release()
+        audioEngine.releaseEngine()
         serviceScope.cancel()
     }
 

@@ -363,6 +363,41 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             launch { e.gaplessEnabled.collect { _gaplessEnabled.value = it } }
             launch { e.sleepTimerSecondsRemaining.collect { _sleepTimerSecondsRemaining.value = it } }
             launch { e.pendingSong.collect { _pendingSong.value = it } }
+
+            // Restore saved playback state on startup if engine queue is empty
+            if (e.queue.value.isEmpty()) {
+                val saved = dev.abstra.pro.data.prefs.PlaybackStateSaver.loadState(context)
+                if (saved.queueSongIds.isNotEmpty() || saved.currentSongId != null) {
+                    val availableSongs = allSongs.first { it.isNotEmpty() }
+                    val songMap = availableSongs.associateBy { it.id }
+                    val restoredQueue = saved.queueSongIds.mapNotNull { songMap[it] }
+                    val restoredOrigQueue = saved.originalQueueSongIds.mapNotNull { songMap[it] }
+                    val activeQueue = if (restoredQueue.isNotEmpty()) {
+                        restoredQueue
+                    } else if (saved.currentSongId != null && songMap.containsKey(saved.currentSongId)) {
+                        listOf(songMap[saved.currentSongId]!!)
+                    } else {
+                        emptyList()
+                    }
+
+                    if (activeQueue.isNotEmpty()) {
+                        try {
+                            val rMode = dev.abstra.pro.data.model.RepeatMode.valueOf(saved.repeatMode)
+                            e.setRepeatMode(rMode)
+                        } catch (_: Exception) {}
+
+                        e.setShuffle(saved.isShuffle)
+
+                        e.restoreQueue(
+                            currentQueue = activeQueue,
+                            origQueue = restoredOrigQueue,
+                            targetSongId = saved.currentSongId,
+                            fallbackIndex = saved.currentIndex,
+                            initialPositionMs = saved.positionMs
+                        )
+                    }
+                }
+            }
         }
 
         // Initial scan on boot
@@ -479,6 +514,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun playNext(song: Song) = engine?.enqueueNext(song)
     fun addToQueue(song: Song) = engine?.enqueueLast(song)
     fun removeQueueItem(song: Song) = engine?.removeQueueItem(song)
+    fun removeQueueItemAt(index: Int) = engine?.removeQueueItemAt(index)
     fun moveQueueItem(from: Int, to: Int) = engine?.moveQueueItem(from, to)
     fun clearQueue() = engine?.clearUpNext()
     fun clearEntireQueue() = engine?.clearEntireQueue()
@@ -792,22 +828,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun persistNowPlaying() {
-        val e = engine ?: return
-        val song = e.currentSong.value ?: return
-        prefs.edit()
-            .putString("last_song_id", song.id)
-            .putLong("last_position_ms", e.currentPosition.value)
-            .putString("last_queue_json", Gson().toJson(e.queue.value))
-            .commit()
+        engine?.persistPlaybackState()
     }
 
-
     fun clearLastSession() {
-        prefs.edit()
-            .remove("last_song_id")
-            .remove("last_position_ms")
-            .remove("last_queue_json")
-            .apply()
+        dev.abstra.pro.data.prefs.PlaybackStateSaver.clearState(context)
     }
 
     override fun onCleared() {

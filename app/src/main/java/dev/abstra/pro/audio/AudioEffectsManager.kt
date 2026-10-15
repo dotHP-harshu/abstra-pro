@@ -68,8 +68,12 @@ class AudioEffectsManager {
     var virtualizerStrength: Int = 0
         private set
 
-    fun attachSession(sessionId: Int, isSecondary: Boolean = false) {
+    private var attachedSessionId = 0
+
+    fun attachSession(sessionId: Int, isSecondary: Boolean = false, force: Boolean = false) {
         if (sessionId == 0) return
+        if (!force && !isSecondary && sessionId == attachedSessionId) return
+        if (!isSecondary) attachedSessionId = sessionId
 
         equalizer.setup(
             sessionId = sessionId,
@@ -190,6 +194,7 @@ class AudioEffectsManager {
     }
 
     fun releaseAll() {
+        attachedSessionId = 0
         equalizer.releaseAll()
         dynamics.releaseAll()
         loudness.releaseAll()

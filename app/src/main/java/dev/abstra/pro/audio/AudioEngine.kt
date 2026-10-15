@@ -12,21 +12,26 @@ import android.media.PlaybackParams
 import android.net.Uri
 import android.os.Build
 import android.util.Log
-import dev.abstra.pro.audio.synth.ProceduralAudioGenerator
+import dev.abstra.pro.audio.synth.ProceduralSynthPlayer
 import dev.abstra.pro.data.model.RepeatMode
 import dev.abstra.pro.data.model.Song
+import dev.abstra.pro.data.prefs.PlaybackStateSaver
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class AudioEngine(private val context: Context) {
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     val effectsManager = AudioEffectsManager()
-    private val proceduralSynth = ProceduralAudioGenerator()
 
+    private val exoPlayer: PlaybackPlayer
+    private val synthPlayer: PlaybackPlayer
     @Volatile
-    private var playbackRouter: PlaybackRouter? = null
+    private var activePlayer: PlaybackPlayer? = null
 
     private val consecutiveFailures = java.util.concurrent.atomic.AtomicInteger(0)
 
@@ -45,6 +50,9 @@ class AudioEngine(private val context: Context) {
 
     private val _duration = MutableStateFlow(180000L)
     val duration: StateFlow<Long> = _duration.asStateFlow()
+
+    private val _seekEvents = MutableSharedFlow<Long>(extraBufferCapacity = 1)
+    val seekEvents: SharedFlow<Long> = _seekEvents.asSharedFlow()
 
     private val _queue = MutableStateFlow<List<Song>>(emptyList())
     val queue: StateFlow<List<Song>> = _queue.asStateFlow()
@@ -74,8 +82,7 @@ class AudioEngine(private val context: Context) {
     fun setVolume(v: Float) {
         val clamped = v.coerceIn(0f, 1f)
         _currentVolume.value = clamped
-        try { playbackRouter?.setVolume(clamped) } catch (_: Exception) {}
-        proceduralSynth.setVolume(clamped)
+        try { activePlayer?.setVolume(clamped) } catch (_: Exception) {}
     }
 
     private val _backgroundPlaybackEnabled = MutableStateFlow(
@@ -124,6 +131,8 @@ class AudioEngine(private val context: Context) {
     var onSongCompleted: ((Song) -> Unit)? = null
     var onSongSkipped: ((Song, Long, Long) -> Unit)? = null
     var onPlaybackStateChange: ((Boolean) -> Unit)? = null
+    var onRepeatModeChanged: ((RepeatMode) -> Unit)? = null
+    var onShuffleChanged: ((Boolean) -> Unit)? = null
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var progressJob: Job? = null
@@ -133,7 +142,7 @@ class AudioEngine(private val context: Context) {
     private var lastPreviousClickTimeMs = 0L
     private var isInForeground = true
 
-    val currentSessionId: Int get() = playbackRouter?.getAudioSessionId() ?: 0
+    val currentSessionId: Int get() = activePlayer?.getAudioSessionId() ?: 0
 
     // Noisy broadcast receiver (smooth 200ms fade on headphone unplug)
     private val noisyReceiver = object : BroadcastReceiver() {
@@ -148,23 +157,23 @@ class AudioEngine(private val context: Context) {
         val filter = IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
         context.registerReceiver(noisyReceiver, filter)
         
-        playbackRouter = PlaybackRouter(
+        exoPlayer = ExoPlaybackAdapter(
             context = context,
             scope = scope,
             onSongStarted = { s -> 
                 _isPlaying.value = true
+                _pendingSong.value = s
+                consecutiveFailures.set(0)
                 onSongStarted?.invoke(s)
                 onPlaybackStateChange?.invoke(true)
-                scope.launch {
-                    delay(100)
-                    effectsManager.attachSession(playbackRouter?.getAudioSessionId() ?: 0)
-                }
             },
             onSongCompleted = {
                 scope.launch { handleSongCompletion() }
             },
             onSeamlessTransition = { song ->
+                _currentSong.value?.let { onSongCompleted?.invoke(it) }
                 _currentSong.value = song
+                _pendingSong.value = song
                 _duration.value = song.durationMs
                 _currentPosition.value = 0L
                 val q = _queue.value
@@ -172,12 +181,43 @@ class AudioEngine(private val context: Context) {
                 if (newIdx != -1) {
                     _currentIndex.value = newIdx
                 }
+                persistPlaybackState()
             },
             onError = {
                 _isPlaying.value = false
-                scope.launch { delay(400); playNext() }
+                val q = _queue.value
+                if (consecutiveFailures.incrementAndGet() > q.size) {
+                    consecutiveFailures.set(0)
+                } else {
+                    scope.launch { delay(400); playNextInternal(isUserInitiated = false) }
+                }
+            },
+            onIsPlayingChanged = { playing ->
+                if (_isPlaying.value != playing) {
+                    _isPlaying.value = playing
+                    onPlaybackStateChange?.invoke(playing)
+                }
+            },
+            onAudioSessionIdChanged = { sessionId ->
+                effectsManager.attachSession(sessionId)
             }
         )
+
+        synthPlayer = ProceduralSynthPlayer(
+            scope = scope,
+            onSongStarted = { s ->
+                _isPlaying.value = true
+                _pendingSong.value = s
+                consecutiveFailures.set(0)
+                onSongStarted?.invoke(s)
+                onPlaybackStateChange?.invoke(true)
+            },
+            onSongCompleted = {
+                scope.launch { handleSongCompletion() }
+            }
+        )
+
+        activePlayer = exoPlayer
         
         startProgressTracker()
     }
@@ -190,14 +230,23 @@ class AudioEngine(private val context: Context) {
     // QUEUE & PLAYBACK CONTROLS
     // ─────────────────────────────────────────────────────────────
 
-    fun setQueue(songs: List<Song>, startIndex: Int = 0, autoPlay: Boolean = true) {
+    fun setQueue(songs: List<Song>, startIndex: Int = 0, autoPlay: Boolean = true, initialPositionMs: Long = 0L) {
         if (songs.isEmpty()) return
         originalQueue = songs
         val safeIndex = startIndex.coerceIn(0, songs.size - 1)
         val effective = if (_isShuffle.value) shuffledQueue(songs, safeIndex) else songs
+        val startAt = if (_isShuffle.value) 0 else safeIndex
         _queue.value = effective
-        _currentIndex.value = safeIndex
-        playSong(effective[safeIndex], autoPlay)
+        _currentIndex.value = startAt
+        playSong(effective[startAt], autoPlay, initialPositionMs)
+    }
+
+    fun playTrackAtIndex(index: Int, autoPlay: Boolean = true, initialPositionMs: Long = 0L) {
+        val q = _queue.value
+        if (index in q.indices) {
+            _currentIndex.value = index
+            playSong(q[index], autoPlay, initialPositionMs)
+        }
     }
 
     fun enqueueNext(song: Song) {
@@ -239,22 +288,52 @@ class AudioEngine(private val context: Context) {
         val currentQueue = _queue.value.toMutableList()
         val idx = currentQueue.indexOf(song)
         if (idx == -1) return
-        currentQueue.removeAt(idx)
+        removeQueueItemAt(idx)
+    }
+
+    fun removeQueueItemAt(index: Int) {
+        val currentQueue = _queue.value.toMutableList()
+        if (index !in currentQueue.indices) return
+        val removed = currentQueue.removeAt(index)
         _queue.value = currentQueue
-        originalQueue = originalQueue.filter { it.id != song.id }
-        if (idx < _currentIndex.value) {
-            _currentIndex.value -= 1
+        val origIdx = originalQueue.indexOf(removed)
+        if (origIdx != -1) {
+            originalQueue = originalQueue.toMutableList().apply { removeAt(origIdx) }
+        }
+        val cur = _currentIndex.value
+        if (index < cur) {
+            _currentIndex.value = cur - 1
+        } else if (index == cur) {
+            if (currentQueue.isEmpty()) {
+                clearEntireQueue()
+            } else {
+                val nextIdx = cur.coerceIn(0, currentQueue.size - 1)
+                _currentIndex.value = nextIdx
+                playSong(currentQueue[nextIdx])
+            }
         }
     }
 
     fun moveQueueItem(from: Int, to: Int) {
         val currentQueue = _queue.value.toMutableList()
-        if (from !in currentQueue.indices || to !in currentQueue.indices) return
+        if (from !in currentQueue.indices || to !in currentQueue.indices || from == to) return
+        val cur = _currentIndex.value
         val item = currentQueue.removeAt(from)
         currentQueue.add(to, item)
         _queue.value = currentQueue
-        // simple approach for originalQueue
-        originalQueue = currentQueue
+        if (!_isShuffle.value) {
+            originalQueue = currentQueue
+        }
+        activePlayer?.clearPendingNextTrack()
+
+        if (cur == from) {
+            _currentIndex.value = to
+        } else if (from < cur && to >= cur) {
+            _currentIndex.value = cur - 1
+        } else if (from > cur && to <= cur) {
+            _currentIndex.value = cur + 1
+        }
+        persistPlaybackState()
     }
 
     /** Clears everything after the currently playing track ("Clear queue" button). */
@@ -276,11 +355,17 @@ class AudioEngine(private val context: Context) {
         _queue.value = emptyList()
         originalQueue = emptyList()
         _currentIndex.value = 0
+        _currentSong.value = null
+        _pendingSong.value = null
+        _currentPosition.value = 0L
+        activePlayer?.clearPendingNextTrack()
+        stopNativePlayers()
         pause()
         _shouldBePlaying = false
+        PlaybackStateSaver.clearState(context)
     }
 
-    fun playSong(song: Song, autoPlay: Boolean = true) {
+    fun playSong(song: Song, autoPlay: Boolean = true, initialPositionMs: Long = 0L) {
         val prev = _currentSong.value
         if (prev != null && prev.id != song.id) {
             val playedSec = _currentPosition.value / 1000L
@@ -291,54 +376,48 @@ class AudioEngine(private val context: Context) {
         }
 
         _pendingSong.value = song
-        _currentPosition.value = 0L
+        _currentPosition.value = initialPositionMs
         _duration.value = song.durationMs.coerceAtLeast(1000L)
         _isPlaying.value = false
         _shouldBePlaying = autoPlay
 
-        if (song.id.startsWith("demo_")) {
-            _currentSong.value = song
-            // Use procedural generator
-            stopNativePlayers()
-            proceduralSynth.setSpeed(_playbackSpeed.value)
-            applyBalance()
-            proceduralSynth.startPlayback(
-                trackId = song.id,
-                initialPositionMs = 0L,
-                onProgressUpdate = { pos -> _currentPosition.value = pos },
-                onCompletion = { scope.launch { handleSongCompletion() } }
-            )
-            _isPlaying.value = true
-            onSongStarted?.invoke(song)
-            onPlaybackStateChange?.invoke(true)
+        val isSynth = song.id.startsWith("demo_")
+        val targetPlayer = if (isSynth) synthPlayer else exoPlayer
+        val otherPlayer = if (isSynth) exoPlayer else synthPlayer
+
+        otherPlayer.stop()
+        activePlayer = targetPlayer
+
+        if (!isSynth && autoPlay && !requestAudioFocus()) {
+            _pendingSong.value = null
             return
         }
 
-        // Native Media Player
-        proceduralSynth.stop()
-        if (!requestAudioFocus()) return
-
-        stopNativePlayers()
-        consecutiveFailures.set(0)
-        
-        val router = playbackRouter ?: return
-        
         _currentSong.value = song
-        
-        router.setVolume(_currentVolume.value)
-        router.setSpeed(_playbackSpeed.value)
-        router.isGaplessEnabled = _gaplessEnabled.value
-        
-        router.playSong(song, autoPlay)
-        
+
+        targetPlayer.setVolume(_currentVolume.value)
+        targetPlayer.setSpeed(_playbackSpeed.value)
+        targetPlayer.isGaplessEnabled = _gaplessEnabled.value
+        applyBalance()
+
+        targetPlayer.playSong(song, autoPlay, initialPositionMs)
+
         if (!autoPlay) {
             _isPlaying.value = false
             onPlaybackStateChange?.invoke(false)
         }
+
+        scope.launch {
+            delay(100)
+            val sessionId = activePlayer?.getAudioSessionId() ?: 0
+            if (sessionId != 0) {
+                effectsManager.attachSession(sessionId)
+            }
+        }
+        persistPlaybackState()
     }
 
     fun resume() {
-        if (!requestAudioFocus()) return
         val current = _currentSong.value
         val pending = _pendingSong.value
         if (current == null && pending == null) return
@@ -349,23 +428,28 @@ class AudioEngine(private val context: Context) {
         }
 
         val song = current ?: return
-
-        if (song.id.startsWith("demo_")) {
-            proceduralSynth.startPlayback(
-                trackId = song.id,
-                initialPositionMs = _currentPosition.value,
-                onProgressUpdate = { pos -> _currentPosition.value = pos },
-                onCompletion = { scope.launch { handleSongCompletion() } }
-            )
-            _isPlaying.value = true
-            onPlaybackStateChange?.invoke(true)
-            return
-        }
+        val isSynth = song.id.startsWith("demo_")
+        if (!isSynth && !requestAudioFocus()) return
 
         try {
-            playbackRouter?.resume()
+            activePlayer?.resume()
             _isPlaying.value = true
             onPlaybackStateChange?.invoke(true)
+        } catch (_: Exception) {}
+    }
+
+    fun persistPlaybackState() {
+        try {
+            PlaybackStateSaver.saveState(
+                context = context,
+                currentSong = _currentSong.value,
+                queue = _queue.value,
+                originalQueue = originalQueue,
+                currentIndex = _currentIndex.value,
+                positionMs = _currentPosition.value,
+                repeatMode = _repeatMode.value,
+                isShuffle = _isShuffle.value
+            )
         } catch (_: Exception) {}
     }
 
@@ -373,30 +457,20 @@ class AudioEngine(private val context: Context) {
         _shouldBePlaying = false
         _isPlaying.value = false
         onPlaybackStateChange?.invoke(false)
-        proceduralSynth.pause()
         try {
-            playbackRouter?.pause()
+            activePlayer?.pause()
         } catch (_: Exception) {}
+        persistPlaybackState()
     }
 
     fun seekTo(positionMs: Long) {
-        val song = _currentSong.value ?: return
+        if (_currentSong.value == null) return
         _currentPosition.value = positionMs
-
-        if (song.id.startsWith("demo_")) {
-            if (_isPlaying.value) {
-                proceduralSynth.startPlayback(
-                    song.id, positionMs,
-                    onProgressUpdate = { pos -> _currentPosition.value = pos },
-                    onCompletion = { scope.launch { handleSongCompletion() } }
-                )
-            }
-            return
-        }
-
+        _seekEvents.tryEmit(positionMs)
         try {
-            playbackRouter?.seekTo(positionMs)
+            activePlayer?.seekTo(positionMs)
         } catch (_: Exception) {}
+        persistPlaybackState()
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -416,12 +490,33 @@ class AudioEngine(private val context: Context) {
 
         val q = _queue.value
         if (q.isEmpty()) return
-        val prevIdx = (_currentIndex.value - 1 + q.size) % q.size
+        val currentIdx = _currentIndex.value
+        val prevIdx = if (currentIdx <= 0) {
+            if (_repeatMode.value == RepeatMode.REPEAT_ALL) {
+                q.size - 1
+            } else {
+                seekTo(0L)
+                return
+            }
+        } else {
+            currentIdx - 1
+        }
         _currentIndex.value = prevIdx
+        consecutiveFailures.incrementAndGet()
         playSong(q[prevIdx])
     }
 
+    /** User-initiated next (button tap, headset skip, notification next). */
     fun playNext() {
+        playNextInternal(isUserInitiated = true)
+    }
+
+    /** Natural track end completion. */
+    fun onTrackEnded() {
+        playNextInternal(isUserInitiated = false)
+    }
+
+    private fun playNextInternal(isUserInitiated: Boolean) {
         val q = _queue.value
         if (q.isEmpty()) return
 
@@ -431,9 +526,11 @@ class AudioEngine(private val context: Context) {
             return
         }
 
-        if (_repeatMode.value == RepeatMode.REPEAT_ONE) {
-            seekTo(0L)
-            resume()
+        // Repeat-One only restarts on natural track end. User Next skips to the next track.
+        if (!isUserInitiated && _repeatMode.value == RepeatMode.REPEAT_ONE) {
+            val current = _currentSong.value ?: q[_currentIndex.value.coerceIn(0, q.size - 1)]
+            consecutiveFailures.incrementAndGet()
+            playSong(current, autoPlay = true)
             return
         }
 
@@ -460,12 +557,52 @@ class AudioEngine(private val context: Context) {
         if (s != null) {
             onSongCompleted?.invoke(s)
         }
-        playNext()
+        onTrackEnded()
     }
 
     // ─────────────────────────────────────────────────────────────
     // SHUFFLE & REPEAT
     // ─────────────────────────────────────────────────────────────
+
+    fun setRepeatMode(mode: RepeatMode) {
+        prefs.edit().putString("repeat_mode", mode.name).apply()
+        _repeatMode.value = mode
+        activePlayer?.clearPendingNextTrack()
+        onRepeatModeChanged?.invoke(mode)
+        persistPlaybackState()
+    }
+
+    fun setShuffle(enabled: Boolean) {
+        if (_isShuffle.value == enabled) return
+        toggleShuffle()
+    }
+
+    /**
+     * Restores an active and original queue on app cold-start without re-shuffling
+     * or accidentally auto-playing.
+     */
+    fun restoreQueue(
+        currentQueue: List<Song>,
+        origQueue: List<Song>,
+        targetSongId: String?,
+        fallbackIndex: Int,
+        initialPositionMs: Long
+    ) {
+        if (currentQueue.isEmpty()) return
+        originalQueue = if (origQueue.isNotEmpty()) origQueue else currentQueue
+        _queue.value = currentQueue
+
+        val foundIdx = if (targetSongId != null) {
+            currentQueue.indexOfFirst { it.id == targetSongId }
+        } else -1
+
+        val finalIdx = if (foundIdx != -1) foundIdx else fallbackIndex.coerceIn(0, currentQueue.size - 1)
+        _currentIndex.value = finalIdx
+
+        val targetSong = currentQueue[finalIdx]
+        playSong(targetSong, autoPlay = false, initialPositionMs = initialPositionMs)
+        persistPlaybackState()
+    }
 
     fun toggleShuffle() {
         val current = _isShuffle.value
@@ -482,9 +619,13 @@ class AudioEngine(private val context: Context) {
             _currentIndex.value = shuffled.indexOfFirst { it.id == activeSong?.id }.coerceAtLeast(0)
         } else {
             // Restore original
-            _queue.value = originalQueue
-            _currentIndex.value = originalQueue.indexOfFirst { it.id == activeSong?.id }.coerceAtLeast(0)
+            val orig = if (originalQueue.isNotEmpty()) originalQueue else _queue.value
+            _queue.value = orig
+            _currentIndex.value = orig.indexOfFirst { it.id == activeSong?.id }.coerceAtLeast(0)
         }
+        activePlayer?.clearPendingNextTrack()
+        onShuffleChanged?.invoke(newVal)
+        persistPlaybackState()
     }
 
     fun toggleRepeatMode() {
@@ -493,15 +634,14 @@ class AudioEngine(private val context: Context) {
             RepeatMode.REPEAT_ONE -> RepeatMode.REPEAT_OFF
             RepeatMode.REPEAT_OFF -> RepeatMode.REPEAT_ALL
         }
-        prefs.edit().putString("repeat_mode", newMode.name).apply()
-        _repeatMode.value = newMode
+        setRepeatMode(newMode)
     }
 
     private fun shuffledQueue(queue: List<Song>, currentIndex: Int): List<Song> {
         if (queue.size < 2) return queue
         val current = queue[currentIndex.coerceIn(0, queue.size - 1)]
         val rest = queue.filterIndexed { i, _ -> i != currentIndex }.shuffled()
-        return rest.toMutableList().apply { add(currentIndex.coerceIn(0, size), current) }
+        return listOf(current) + rest
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -512,17 +652,20 @@ class AudioEngine(private val context: Context) {
 
     fun setGapless(enabled: Boolean) {
         isGaplessEnabled = enabled
-        playbackRouter?.isGaplessEnabled = enabled
+        _gaplessEnabled.value = enabled
+        activePlayer?.isGaplessEnabled = enabled
+        if (!enabled) {
+            activePlayer?.clearPendingNextTrack()
+        }
     }
 
     fun setPlaybackSpeed(speed: Float) {
         _playbackSpeed.value = speed.coerceIn(0.5f, 2.0f)
         applySpeed()
-        proceduralSynth.setSpeed(speed)
     }
 
     private fun applySpeed() {
-        playbackRouter?.setSpeed(_playbackSpeed.value)
+        activePlayer?.setSpeed(_playbackSpeed.value)
     }
 
     fun setBalancePan(pan: Float) {
@@ -533,9 +676,9 @@ class AudioEngine(private val context: Context) {
     private fun applyBalance() {
         val (left, right) = effectsManager.getChannelVolumes()
         try {
-            val v = (left + right) / 2f
-            playbackRouter?.setVolume(v)
-            proceduralSynth.setVolume(v)
+            activePlayer?.leftVolume = left
+            activePlayer?.rightVolume = right
+            activePlayer?.setVolume(_currentVolume.value)
         } catch (_: Exception) {}
     }
 
@@ -549,7 +692,7 @@ class AudioEngine(private val context: Context) {
             for (i in steps downTo 0) {
                 val factor = i.toFloat() / steps
                 try {
-                    playbackRouter?.setVolume(factor)
+                    activePlayer?.setVolume(factor)
                 } catch (_: Exception) {}
                 delay(20)
             }
@@ -583,33 +726,35 @@ class AudioEngine(private val context: Context) {
         progressJob?.cancel()
         progressJob = scope.launch {
             var lastValidPos = 0L
+            var lastPersistTimeMs = System.currentTimeMillis()
             while (isActive) {
-                if (playbackRouter != null) {
+                if (activePlayer != null) {
                     try {
-                        val isActuallyPlaying = playbackRouter?.isPlaying() == true
-                        if (_isPlaying.value && !isActuallyPlaying) {
-                            _isPlaying.value = false
-                            onPlaybackStateChange?.invoke(false)
-                        } else if (!_isPlaying.value && isActuallyPlaying) {
-                            _isPlaying.value = true
-                            onPlaybackStateChange?.invoke(true)
-                        }
-                        
-                        val newPos = if (isActuallyPlaying) {
-                            playbackRouter?.getCurrentPosition() ?: lastValidPos
-                        } else {
-                            lastValidPos
-                        }
-                        if (newPos > 0L) lastValidPos = newPos
-                        _currentPosition.value = lastValidPos
-
+                        val isActuallyPlaying = activePlayer?.isPlaying() == true
                         if (isActuallyPlaying) {
+                            val newPos = activePlayer?.getCurrentPosition() ?: 0L
+                            if (newPos >= 0L) {
+                                lastValidPos = newPos
+                                _currentPosition.value = newPos
+                            }
+                            val now = System.currentTimeMillis()
+                            if (now - lastPersistTimeMs >= 20000L) {
+                                lastPersistTimeMs = now
+                                persistPlaybackState()
+                            }
+                        } else {
+                            lastValidPos = _currentPosition.value
+                        }
+
+                        if (isActuallyPlaying && _repeatMode.value != RepeatMode.REPEAT_ONE) {
                             // Prepare next track for gapless if needed
                             if (_duration.value > 0 && (_duration.value - lastValidPos) < 20000L) { // prepare 20s in advance
                                 val q = _queue.value
                                 val nextIdx = _currentIndex.value + 1
                                 if (nextIdx < q.size) {
-                                    playbackRouter?.prepareNextTrack(q[nextIdx])
+                                    activePlayer?.prepareNextTrack(q[nextIdx])
+                                } else if (_repeatMode.value == RepeatMode.REPEAT_ALL && q.isNotEmpty()) {
+                                    activePlayer?.prepareNextTrack(q[0])
                                 }
                             }
                         }
@@ -624,42 +769,34 @@ class AudioEngine(private val context: Context) {
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focus ->
         when (focus) {
             AudioManager.AUDIOFOCUS_GAIN -> {
-                // We got focus back. Restore volume and resume if user wanted playback.
-                try { playbackRouter?.setVolume(1.0f) } catch (_: Exception) {}
-                proceduralSynth.setVolume(1.0f)
+                // We got focus back. Restore to the user's volume setting and resume if desired.
+                val userVol = _currentVolume.value
+                try { activePlayer?.setVolume(userVol) } catch (_: Exception) {}
+                applyBalance()
                 if (_shouldBePlaying) resume()
             }
 
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                // Another app wants us to duck (e.g., notification, voice message).
-                // Always honor this — ducking is cheap and non-disruptive.
-                try { playbackRouter?.setVolume(0.2f) } catch (_: Exception) {}
-                proceduralSynth.setVolume(0.2f)
+                // Duck to 20% of user volume
+                val duckVol = _currentVolume.value * 0.2f
+                try { activePlayer?.setVolume(duckVol) } catch (_: Exception) {}
             }
 
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                // Another app wants temporary exclusive focus (e.g., phone call, voice note).
                 if (_shareAudioFocusEnabled.value) {
-                    // User wants us to share: duck instead of pausing.
-                    try { playbackRouter?.setVolume(0.2f) } catch (_: Exception) {}
-                    proceduralSynth.setVolume(0.2f)
+                    val duckVol = _currentVolume.value * 0.2f
+                    try { activePlayer?.setVolume(duckVol) } catch (_: Exception) {}
                 } else {
-                    // Default: pause and remember intent to resume.
                     pause()
                     _shouldBePlaying = true
                 }
             }
 
             AudioManager.AUDIOFOCUS_LOSS -> {
-                // Another app wants permanent exclusive focus (e.g., YouTube, Spotify).
                 if (_shareAudioFocusEnabled.value) {
-                    // User wants us to share: ignore and keep playing.
-                    // Both streams mix; user hears both. Set our volume to half so
-                    // the user can still hear YouTube clearly.
-                    try { playbackRouter?.setVolume(0.5f) } catch (_: Exception) {}
-                    proceduralSynth.setVolume(0.5f)
+                    val shareVol = _currentVolume.value * 0.5f
+                    try { activePlayer?.setVolume(shareVol) } catch (_: Exception) {}
                 } else {
-                    // Default: pause.
                     pause()
                     _shouldBePlaying = false
                 }
@@ -697,16 +834,20 @@ class AudioEngine(private val context: Context) {
 
     private fun stopNativePlayers() {
         try {
-            playbackRouter?.stop()
+            exoPlayer.stop()
+            synthPlayer.stop()
         } catch (_: Exception) {}
     }
 
-    fun release() {
+    fun releaseEngine() {
+        persistPlaybackState()
+        progressJob?.cancel()
+        progressJob = null
         try {
             context.unregisterReceiver(noisyReceiver)
         } catch (_: Exception) {}
-        stopNativePlayers()
-        proceduralSynth.release()
+        exoPlayer.release()
+        synthPlayer.release()
         effectsManager.releaseAll()
         scope.cancel()
     }
